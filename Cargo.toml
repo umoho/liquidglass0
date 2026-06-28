@@ -13,3 +13,4 @@ license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
 glam = { version = "0.33", default-features = false, features = ["libm"] }
+wgpu = "29"
