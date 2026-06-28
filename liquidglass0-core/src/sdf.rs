@@ -5,7 +5,14 @@ const EPSILON: f32 = 1e-3;
 
 /// 超椭圆 signed distance function。
 ///
-/// 公式：`(|dx/rx|^n + |dy/ry|^n)^(1/n) - 1`。
+/// 公式：
+///
+/// $$ \left|\frac{x}{r_x}\right|^n + \left|\frac{y}{r_y}\right|^n = 1 $$
+///
+/// 对应的 SDF 近似为：
+///
+/// $$ \operatorname{sdf}(p) = \left( \left|\frac{p_x}{r_x}\right|^n + \left|\frac{p_y}{r_y}\right|^n \right)^{\frac{1}{n}} - 1 $$
+///
 /// 返回负值表示在形状内部，正值在外部。
 ///
 /// # 参数
@@ -45,13 +52,18 @@ pub fn sdf_normal(p: Vec2, center: Vec2, half_size: Vec2, corner_radius: f32, n:
 
     let grad = Vec2::new(gx, gy);
     // 归一化梯度即法线方向（指向外侧）
+    //
+    // $$ \mathbf{N} = \frac{\nabla \operatorname{sdf}(p)}{|\nabla \operatorname{sdf}(p)|} $$
     grad.normalize_or_zero()
 }
 
 /// 斜面轮廓：将 SDF 距离映射为 Z 位移。
 ///
 /// 边缘最深（`bevel_depth`），中心为 0。
-/// 使用 smoothstep 平滑过渡。
+///
+/// 公式：$$ z = \operatorname{smoothstep}\left(\frac{d}{b_w}\right) \cdot b_d $$
+///
+/// 其中 $b_w$ 为斜面宽度，$b_d$ 为斜面深度。
 ///
 /// # 参数
 ///

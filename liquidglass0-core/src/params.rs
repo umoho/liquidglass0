@@ -8,34 +8,52 @@ use glam::Vec3;
 pub struct GlassParams {
     // ── 形状 ──
     /// 圆角半径（像素）。
+    ///
+    /// 值越大，圆角越圆润。
     pub corner_radius: f32,
 
     /// 斜面宽度（占半径的比例）。
+    ///
+    /// 值越大，斜面过渡越宽。
     pub bevel_width: f32,
 
     /// 斜面深度（像素）。
+    ///
+    /// 值越大，斜面越深，折射越强。
     pub bevel_depth: f32,
 
     // ── 光学 ──
     /// 折射率，范围 1.3 ~ 1.7。
+    ///
+    /// 值越大，背景偏移越强。
     pub refractive_index: f32,
 
     /// 色散强度。
+    ///
+    /// 值越大，RGB 分离越明显。
     pub chromatic_strength: f32,
 
     /// 菲涅尔反射强度。
+    ///
+    /// 值越大，边缘光晕越亮。
     pub fresnel_intensity: f32,
 
     /// 菲涅尔颜色。
     pub fresnel_color: Vec3,
 
     /// 镜面高光强度。
+    ///
+    /// 值越大，高光越亮。
     pub specular_intensity: f32,
 
     /// 镜面高光锐度。
+    ///
+    /// 值越大，高光越锐利集中。
     pub specular_shininess: f32,
 
     /// 模糊半径（像素）。
+    ///
+    /// 值越大，磨砂模糊越强。
     pub blur_radius: f32,
 
     // ── 材质 ──
@@ -43,35 +61,55 @@ pub struct GlassParams {
     pub tint_color: Vec3,
 
     /// 色调叠加强度，范围 0 ~ 1。
+    ///
+    /// 值越大，玻璃底色越明显。
     pub tint_opacity: f32,
 
     /// 背景透过率，范围 0 ~ 1。
+    ///
+    /// 值越接近 1，背景越清晰。
     pub background_opacity: f32,
 
     /// 饱和度，范围 0 ~ 2。
+    ///
+    /// 值越大，色彩越鲜艳。
     pub saturation: f32,
 
     /// 对比度，范围 0 ~ 2。
+    ///
+    /// 值越大，明暗对比越强。
     pub contrast: f32,
 
     /// 亮度偏移，范围 -1 ~ 1。
+    ///
+    /// 正值提亮整体画面，负值压暗。
     pub brightness: f32,
 
     // ── 交互 ──
     /// 弹簧刚度。
+    ///
+    /// 值越大，回弹越快、越硬。
     pub deformation_spring_k: f32,
 
     /// 弹簧阻尼系数。
+    ///
+    /// 值越大，振荡衰减越快。
     pub deformation_damping_b: f32,
 
     // ── 阴影 ──
     /// 阴影透明度，范围 0 ~ 1。
+    ///
+    /// 值越大，阴影越深。
     pub shadow_opacity: f32,
 
     /// 阴影模糊半径（像素）。
+    ///
+    /// 值越大，阴影越模糊。
     pub shadow_blur: f32,
 
     /// 阴影 Y 偏移（像素）。
+    ///
+    /// 值越大，阴影下移越多。
     pub shadow_offset_y: f32,
 }
 
