@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "liquidglass0-core",
+    "liquidglass0-render",
+    "liquidglass0-demo",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+glam = { version = "0.33", default-features = false, features = ["libm"] }
