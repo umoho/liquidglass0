@@ -22,9 +22,9 @@
 - [x] Cargo.toml workspace 配置
 - [x] liquidglass0-core：GlassParams、InteractionState、SDF 工具
 - [x] liquidglass0-render：ShaderLoader + EmbeddedLoader + wgpu 设备初始化
-- [ ] 着色器：blur_horizontal（compute）
-- [ ] 着色器：blur_vertical（compute）
-- [ ] 管线编排：blur → composite 串联
+- [x] 着色器：blur_horizontal（compute）
+- [x] 着色器：blur_vertical（compute）
+- [x] 管线编排：blur → composite 串联
 - [ ] liquidglass0-demo：winit 窗口 + 背景图渲染
 - [ ] 第一个可验证效果：窗口里看到经过高斯模糊的玻璃面板
 

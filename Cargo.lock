@@ -415,6 +415,7 @@ version = "0.1.0"
 name = "liquidglass0-render"
 version = "0.1.0"
 dependencies = [
+ "bytemuck",
  "liquidglass0-core",
  "wgpu",
 ]

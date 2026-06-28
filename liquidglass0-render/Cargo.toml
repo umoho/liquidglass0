@@ -5,5 +5,6 @@ edition = { workspace = true }
 license = { workspace = true }
 
 [dependencies]
+bytemuck = { workspace = true }
 liquidglass0-core = { path = "../liquidglass0-core" }
 wgpu = { workspace = true }
