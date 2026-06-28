@@ -21,7 +21,7 @@
 - [x] Workspace 骨架：三个 crate 就位
 - [x] Cargo.toml workspace 配置
 - [x] liquidglass0-core：GlassParams、InteractionState、SDF 工具
-- [ ] liquidglass0-render：ShaderLoader + EmbeddedLoader + wgpu 设备初始化
+- [x] liquidglass0-render：ShaderLoader + EmbeddedLoader + wgpu 设备初始化
 - [ ] 着色器：blur_horizontal（compute）
 - [ ] 着色器：blur_vertical（compute）
 - [ ] 管线编排：blur → composite 串联
