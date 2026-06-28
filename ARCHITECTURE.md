@@ -16,7 +16,7 @@ liquidglass0/
 
 | Crate | 依赖 | 职责 |
 |---|---|---|
-| `liquidglass0-core` | — | `GlassParams`、`InteractionState`、SDF 工具、数学 |
+| `liquidglass0-core` | `glam` | `GlassParams`、`InteractionState`、SDF 工具、数学 |
 | `liquidglass0-render` | `core`、`wgpu`、`naga_oil` | 管线创建、着色器加载、逐帧渲染 |
 | `liquidglass0-demo` | `render`、`winit`、`image` | 窗口生命周期、输入 → 渲染 → 呈现循环 |
 
