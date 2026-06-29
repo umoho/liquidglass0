@@ -14,24 +14,42 @@ use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
 /// Demo 应用。
+///
+/// 持有 wgpu 设备句柄、窗口、surface、渲染器实例和背景纹理，
+/// 实现 [`ApplicationHandler`] 驱动窗口与每帧渲染。
 pub struct App {
+    /// wgpu 设备句柄（demo 自用，surface 配置与 command encoder 创建）。
     pub device: wgpu::Device,
+    /// wgpu 命令队列句柄（demo 自用，submit 与纹理上传）。
     pub queue: wgpu::Queue,
 
+    /// wgpu 实例。
     instance: wgpu::Instance,
+    /// wgpu 适配器（用于获取 surface capabilities）。
     adapter: wgpu::Adapter,
+    /// 渲染器配置（surface 格式与工作组大小）。
     config: RendererConfig,
 
+    /// winit 窗口。
     window: Option<Arc<Window>>,
+    /// wgpu surface。
     surface: Option<wgpu::Surface<'static>>,
+    /// 玻璃渲染器。
     renderer: Option<GlassRenderer>,
+    /// 背景纹理。
     background_tex: Option<wgpu::Texture>,
+    /// 背景纹理视图。
     background_view: Option<wgpu::TextureView>,
 
+    /// 当前窗口尺寸（像素）。
     size: (u32, u32),
 }
 
 impl App {
+    /// 创建应用实例。
+    ///
+    /// 传入已创建好的 wgpu 实例、适配器、设备和队列。
+    /// 窗口、surface、渲染器在首次 [`ApplicationHandler::resumed`] 回调中延迟创建。
     pub fn new(
         instance: wgpu::Instance,
         adapter: wgpu::Adapter,
@@ -53,6 +71,9 @@ impl App {
         }
     }
 
+    /// 创建窗口、surface、渲染器及背景纹理。
+    ///
+    /// 在首次 [`ApplicationHandler::resumed`] 时调用。
     fn init_surface(&mut self, event_loop: &ActiveEventLoop) {
         let window = Arc::new(
             event_loop
@@ -109,6 +130,14 @@ impl App {
         self.surface = Some(surface);
     }
 
+    /// 处理窗口大小变化。
+    ///
+    /// 重新配置 surface 并重建背景纹理。
+    /// 宽度或高度为 0（最小化）时不处理。
+    ///
+    /// # 参数
+    ///
+    /// * `size` - 新的窗口物理尺寸（像素）。
     fn resize(&mut self, size: PhysicalSize<u32>) {
         if size.width == 0 || size.height == 0 {
             return;
@@ -138,6 +167,10 @@ impl App {
         self.background_view = Some(view);
     }
 
+    /// 录制并提交一帧渲染命令。
+    ///
+    /// 获取 surface 纹理、构造 [`RenderInput`]、调用渲染器录制、
+    /// 提交到 GPU 并呈现到屏幕。
     fn render(&mut self) {
         let surface = self.surface.as_ref().unwrap();
 
@@ -185,6 +218,19 @@ impl App {
     }
 
     /// 生成程序化棋盘格背景纹理。
+    ///
+    /// 以 50px 为 tile 大小，暖橙与冷蓝交替，
+    /// 上传到 wgpu 纹理并返回纹理及其默认视图。
+    ///
+    /// # 参数
+    ///
+    /// * `device` - wgpu 设备。
+    /// * `queue` - wgpu 队列。
+    /// * `size` - 纹理尺寸（像素）。
+    ///
+    /// # 返回值
+    ///
+    /// 背景纹理及其默认视图。
     fn generate_checkerboard(
         device: &wgpu::Device,
         queue: &wgpu::Queue,
@@ -254,12 +300,16 @@ impl App {
 }
 
 impl ApplicationHandler for App {
+    /// 应用恢复时创建窗口与 surface。
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
             self.init_surface(event_loop);
         }
     }
 
+    /// 窗口事件分发。
+    ///
+    /// 处理关闭、缩放、重绘请求。
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -274,6 +324,7 @@ impl ApplicationHandler for App {
         }
     }
 
+    /// 事件循环即将空闲时请求下一帧重绘。
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
         if let Some(ref window) = self.window {
             window.request_redraw();

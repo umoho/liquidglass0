@@ -9,6 +9,11 @@ use wgpu::{ExperimentalFeatures, Trace};
 
 use winit::event_loop::EventLoop;
 
+/// 初始化 wgpu 并启动 winit 事件循环。
+///
+/// # Panics
+///
+/// 硬件不支持 wgpu 或窗口创建失败时 panic。
 fn main() {
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
 
