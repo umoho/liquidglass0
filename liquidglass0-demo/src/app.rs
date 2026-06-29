@@ -164,7 +164,11 @@ impl App {
             size: self.size,
             interaction: InteractionState::default(),
             time: 0.0,
-            params: GlassParams::default(),
+            params: GlassParams {
+                // 调高 blur_radius 让模糊效果更明显，便于 Phase 1 验证。
+                blur_radius: 25.0,
+                ..Default::default()
+            },
         };
 
         let mut encoder = self
