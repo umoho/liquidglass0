@@ -5,9 +5,10 @@
 //   2. 采样 displacement → 折射偏移
 //   3. RGB 分离采样 → 色散
 //   4. 采样模糊纹理，按厚度混合 → 磨砂感
-//   5. Schlick 菲涅尔 → 边缘发光
-//   6. Blinn-Phong 多光源 → 镜面高光
-//   7. 色调 + 动态范围调整
+//   5. 从高度场推导 3D 法线
+//   6. Schlick 菲涅尔 → 边缘发光
+//   7. Blinn-Phong 多光源 → 镜面高光
+//   8. 色调 + 动态范围调整
 
 #import glass_material
 #import sdf
@@ -89,16 +90,22 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let frost_mix = clamp(thickness / bevel_depth, 0.0, 1.0);
     let frosted = mix(sharp, blurred, frost_mix);
 
+    // --- 4. 从高度场推导 3D 法线 ---
+    let bevel_t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
+    let dz_dt = 6.0 * bevel_t * (1.0 - bevel_t);
+    let slope = dz_dt * bevel_depth / bevel_width_px;
+    let sdf_n = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
+    let surf_grad = sdf_n * slope;
+    let normal_3d = normalize(vec3f(-surf_grad, 1.0));
+
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 4. 菲涅尔：基于边缘距离渐变（pow陡峭衰减） ---
-    let edge_ratio = clamp(-dist / bevel_width_px, 0.0, 1.0);
-    let edge_t = pow(1.0 - edge_ratio, 6.0);
-    let fresnel = schlick_fresnel(1.0 - edge_t, 0.04) * fresnel_intensity;
+    // --- 5. 菲涅尔：基于 3D 法线 ---
+    let cos_theta = normal_3d.z;
+    let fresnel = schlick_fresnel(cos_theta, 0.04) * fresnel_intensity;
 
-    // --- 5. 镜面高光 ---
-    let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
+    // --- 6. 镜面高光 ---
     var specular_total = vec3f(0.0);
     let view_dir = vec3f(0.0, 0.0, 1.0);
 
@@ -106,7 +113,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     if light_count > 0.0 {
         let light_dir = normalize(vec3f(u.light01_pos.xy - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
-        let ndh = max(dot(vec3f(normal, 0.0), half_vec), 0.0);
+        let ndh = max(dot(normal_3d, half_vec), 0.0);
         specular_total += pow(ndh, specular_shininess) * u.light0_col.xyz * specular_intensity;
     }
 
@@ -114,7 +121,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     if light_count > 1.0 {
         let light_dir = normalize(vec3f(u.light01_pos.zw - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
-        let ndh = max(dot(vec3f(normal, 0.0), half_vec), 0.0);
+        let ndh = max(dot(normal_3d, half_vec), 0.0);
         specular_total += pow(ndh, specular_shininess) * u.light1_col.xyz * specular_intensity;
     }
 
@@ -122,11 +129,11 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     if light_count > 2.0 {
         let light_dir = normalize(vec3f(u.light2_pos.xy - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
-        let ndh = max(dot(vec3f(normal, 0.0), half_vec), 0.0);
+        let ndh = max(dot(normal_3d, half_vec), 0.0);
         specular_total += pow(ndh, specular_shininess) * u.light2_col.xyz * specular_intensity;
     }
 
-    // --- 6. 合成 ---
+    // --- 8. 合成 ---
     var color = base_color * bg_opacity;
 
     // 叠加菲涅尔边缘光
