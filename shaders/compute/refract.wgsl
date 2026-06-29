@@ -25,9 +25,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let center = u.panel_info.xy;
     let half_size = u.panel_info.zw;
     let corner_radius = u.shape_params.x;
-    let bevel_width = u.shape_params.y;
+    let bevel_width_ratio = u.shape_params.y;
     let bevel_depth = u.shape_params.z;
     let refractive_index = u.shape_params.w;
+    let bevel_width_px = bevel_width_ratio * min(half_size.x, half_size.y);
 
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(p, center, half_size, corner_radius, 5.0);
@@ -40,7 +41,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     // 玻璃区域内：计算折射偏移
     let normal = sdf::sdf_normal(p, center, half_size, corner_radius, 5.0);
-    let thickness = sdf::bevel_z(dist, bevel_width, bevel_depth);
+    let thickness = sdf::bevel_z(dist, bevel_width_px, bevel_depth);
 
     // 简化 Snell 定律：偏移 = 法线 × 厚度 × (1 - 1/n)
     let eta = 1.0 - 1.0 / refractive_index;

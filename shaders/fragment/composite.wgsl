@@ -43,8 +43,9 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let center = u.panel_info.xy;
     let half_size = u.panel_info.zw;
     let corner_radius = u.shape_params.x;
-    let bevel_width = u.shape_params.y;
+    let bevel_width_ratio = u.shape_params.y;
     let bevel_depth = u.shape_params.z;
+    let bevel_width_px = bevel_width_ratio * min(half_size.x, half_size.y);
     let chromatic_strength = u.optical_a.x;
     let fresnel_intensity = u.optical_a.y;
     let specular_intensity = u.optical_a.z;
@@ -84,7 +85,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // --- 3. 磨砂：按厚度混合清晰/模糊 ---
     let sharp = textureSample(background_tex, tex_sampler, refracted_uv);
     let blurred = textureSample(blur_tex, tex_sampler, refracted_uv);
-    let thickness = sdf::bevel_z(dist, bevel_width, bevel_depth);
+    let thickness = sdf::bevel_z(dist, bevel_width_px, bevel_depth);
     let frost_mix = clamp(thickness / bevel_depth, 0.0, 1.0);
     let frosted = mix(sharp, blurred, frost_mix);
 
@@ -92,7 +93,9 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
     // --- 4. 菲涅尔：基于 bevel 斜率推导掠射角 ---
-    let slope = thickness / max(bevel_width, 0.001);
+    let t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
+    let dz_dt = 6.0 * t * (1.0 - t);
+    let slope = dz_dt * bevel_depth / bevel_width_px;
     let view_dot = 1.0 / sqrt(1.0 + slope * slope);
     let fresnel = schlick_fresnel(view_dot, 0.04) * fresnel_intensity;
 
