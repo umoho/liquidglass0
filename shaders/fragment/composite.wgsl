@@ -92,9 +92,10 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 4. 菲涅尔：基于边缘距离渐变 ---
-    let edge_t = 1.0 - clamp(-dist / bevel_width_px, 0.0, 1.0);
-    let fresnel = schlick_fresnel(edge_t, 0.04) * fresnel_intensity;
+    // --- 4. 菲涅尔：基于边缘距离渐变（pow陡峭衰减） ---
+    let edge_ratio = clamp(-dist / bevel_width_px, 0.0, 1.0);
+    let edge_t = pow(1.0 - edge_ratio, 6.0);
+    let fresnel = schlick_fresnel(1.0 - edge_t, 0.04) * fresnel_intensity;
 
     // --- 5. 镜面高光 ---
     let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
