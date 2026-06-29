@@ -83,7 +83,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     // --- 3. 磨砂：按厚度混合清晰/模糊 ---
     let sharp = textureSample(background_tex, tex_sampler, refracted_uv);
-    let blurred = textureSample(blur_tex, tex_sampler, uv);
+    let blurred = textureSample(blur_tex, tex_sampler, refracted_uv);
     let thickness = sdf::bevel_z(dist, bevel_width, bevel_depth);
     let frost_mix = clamp(thickness / bevel_depth, 0.0, 1.0);
     let frosted = mix(sharp, blurred, frost_mix);
@@ -91,12 +91,14 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 4. 菲涅尔 ---
-    let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
-    let view_dot = abs(dot(normal, vec2f(0.0, 1.0)));
+    // --- 4. 菲涅尔：基于 bevel 斜率推导掠射角 ---
+    let slope = thickness / max(bevel_width, 0.001);
+    let view_dot = 1.0 / sqrt(1.0 + slope * slope);
     let fresnel = schlick_fresnel(view_dot, 0.04) * fresnel_intensity;
 
-    // --- 5. 镜面高光 ---
+    // --- 5. 镜面高光（仅在 bevel 区域显示） ---
+    let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
+    let bevel_mask = clamp(thickness / max(bevel_depth * 0.5, 0.001), 0.0, 1.0);
     var specular_total = vec3f(0.0);
     let view_dir = vec3f(0.0, 0.0, 1.0);
 
@@ -130,8 +132,8 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 叠加菲涅尔边缘光
     color += fresnel_color * fresnel;
 
-    // 叠加镜面高光
-    color += specular_total;
+    // 高光限制在 bevel 区域，降低强度防过曝
+    color += specular_total * bevel_mask * 0.4;
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);
