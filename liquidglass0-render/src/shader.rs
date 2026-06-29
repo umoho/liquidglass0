@@ -66,7 +66,7 @@ pub struct NagaOilLoader {
 impl NagaOilLoader {
     /// 创建加载器，注册所有公共模块。
     pub fn new() -> Self {
-        let mut composer = Composer::non_validating();
+        let mut composer = Composer::default();
 
         // 注册公共模块：这些文件包含 `#define_import_path`，可被其他着色器 #import
         let common_modules = [
@@ -74,10 +74,6 @@ impl NagaOilLoader {
             (
                 "glass_material",
                 include_str!("../../shaders/common/glass_material.wgsl"),
-            ),
-            (
-                "fullscreen_triangle",
-                include_str!("../../shaders/common/fullscreen_triangle.wgsl"),
             ),
         ];
 
@@ -108,6 +104,10 @@ impl ShaderLoader for NagaOilLoader {
         let source = match name {
             "blur_horizontal" => include_str!("../../shaders/compute/blur_horizontal.wgsl"),
             "blur_vertical" => include_str!("../../shaders/compute/blur_vertical.wgsl"),
+            "refract" => include_str!("../../shaders/compute/refract.wgsl"),
+            "fullscreen_triangle" => {
+                include_str!("../../shaders/common/fullscreen_triangle.wgsl")
+            }
             "composite" => include_str!("../../shaders/fragment/composite.wgsl"),
             _ => panic!("未知着色器: {name}"),
         };

@@ -16,7 +16,7 @@
 @group(0) @binding(1) var blur_tex: texture_2d<f32>;
 @group(0) @binding(2) var displacement_tex: texture_2d<f32>;
 @group(0) @binding(3) var tex_sampler: sampler;
-@group(0) @binding(4) var<uniform> u: GlassUniforms;
+@group(0) @binding(4) var<uniform> u: glass_material::GlassUniforms;
 
 /// Schlick 菲涅尔近似。
 fn schlick_fresnel(cos_theta: f32, f0: f32) -> f32 {
@@ -61,7 +61,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let light_count = u.interaction.w;
 
     // 计算 SDF 距离
-    let dist = squircle_sdf(pixel, center, half_size, corner_radius, 5.0);
+    let dist = sdf::squircle_sdf(pixel, center, half_size, corner_radius, 5.0);
 
     // 玻璃区域外：直接输出背景
     if dist >= 0.0 {
@@ -84,7 +84,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // --- 3. 磨砂：按厚度混合清晰/模糊 ---
     let sharp = textureSample(background_tex, tex_sampler, refracted_uv);
     let blurred = textureSample(blur_tex, tex_sampler, uv);
-    let thickness = bevel_z(dist, bevel_width, bevel_depth);
+    let thickness = sdf::bevel_z(dist, bevel_width, bevel_depth);
     let frost_mix = clamp(thickness / bevel_depth, 0.0, 1.0);
     let frosted = mix(sharp, blurred, frost_mix);
 
@@ -92,7 +92,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
     // --- 4. 菲涅尔 ---
-    let normal = sdf_normal(pixel, center, half_size, corner_radius, 5.0);
+    let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
     let view_dot = abs(dot(normal, vec2f(0.0, 1.0)));
     let fresnel = schlick_fresnel(view_dot, 0.04) * fresnel_intensity;
 

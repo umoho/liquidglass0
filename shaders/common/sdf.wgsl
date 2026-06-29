@@ -11,14 +11,6 @@ const EPSILON: f32 = 1e-3;
 /// 超椭圆 signed distance function。
 ///
 /// 返回负值表示在形状内部，正值在外部。
-///
-/// # 参数
-///
-/// * `p` - 待测点坐标
-/// * `center` - 面板中心
-/// * `half_size` - 面板半宽/半高
-/// * `corner_radius` - 圆角半径（像素）
-/// * `n` - 超椭圆指数，范围 4 ~ 6
 fn squircle_sdf(p: vec2f, center: vec2f, half_size: vec2f, corner_radius: f32, n: f32) -> f32 {
     let d = p - center;
     let effective = half_size - vec2f(corner_radius);

@@ -9,7 +9,7 @@
 #import sdf
 
 @group(0) @binding(0) var displacement_out: texture_storage_2d<rgba16float, write>;
-@group(0) @binding(1) var<uniform> u: GlassUniforms;
+@group(0) @binding(1) var<uniform> u: glass_material::GlassUniforms;
 
 @compute @workgroup_size(16, 16)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -30,7 +30,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let refractive_index = u.shape_params.w;
 
     // 计算 SDF 距离
-    let dist = squircle_sdf(p, center, half_size, corner_radius, 5.0);
+    let dist = sdf::squircle_sdf(p, center, half_size, corner_radius, 5.0);
 
     // 玻璃区域外：无偏移
     if dist >= 0.0 {
@@ -39,8 +39,8 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     }
 
     // 玻璃区域内：计算折射偏移
-    let normal = sdf_normal(p, center, half_size, corner_radius, 5.0);
-    let thickness = bevel_z(dist, bevel_width, bevel_depth);
+    let normal = sdf::sdf_normal(p, center, half_size, corner_radius, 5.0);
+    let thickness = sdf::bevel_z(dist, bevel_width, bevel_depth);
 
     // 简化 Snell 定律：偏移 = 法线 × 厚度 × (1 - 1/n)
     let eta = 1.0 - 1.0 / refractive_index;
