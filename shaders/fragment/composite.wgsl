@@ -1,14 +1,15 @@
 // 最终合成 fragment shader。
 //
 // 全屏三角形，逐像素合成所有光学效果：
-//   1. SDF 判断玻璃区域
+//   1. SDF 判断玻璃区域 + 阴影
 //   2. 采样 displacement → 折射偏移
 //   3. RGB 分离采样 → 色散
-//   4. 采样模糊纹理，按厚度混合 → 磨砂感
-//   5. 从高度场推导 3D 法线
+//   4. 采样模糊纹理，按球形弧面厚度混合 → 磨砂感
+//   5. 从球形弧面高度场推导 3D 法线
 //   6. Schlick 菲涅尔 → 边缘发光
 //   7. Blinn-Phong 多光源 → 镜面高光
-//   8. 色调 + 动态范围调整
+//   8. 玻璃下方半透阴影
+//   9. 色调 + 动态范围调整
 
 #import glass_material
 #import sdf
@@ -58,16 +59,27 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let saturation = u.material.y;
     let contrast = u.material.z;
     let brightness = u.material.w;
-    let cursor_pos = u.interaction.xy;
-    let time = u.interaction.z;
     let light_count = u.interaction.w;
+
+    // 阴影 + 厚度参数
+    let thickness_multiplier = u.shadow_params.x;
+    let shadow_opacity = u.shadow_params.y;
+    let shadow_blur = u.shadow_params.z;
+    let shadow_offset_y = u.shadow_params.w;
+    let effective_depth = bevel_depth * thickness_multiplier;
 
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(pixel, center, half_size, corner_radius, 5.0);
 
-    // 玻璃区域外：直接输出背景
+    // 玻璃区域外：计算阴影，输出背景 + 阴影
     if dist >= 0.0 {
-        return textureSample(background_tex, tex_sampler, uv);
+        let bg = textureSample(background_tex, tex_sampler, uv);
+        // 阴影 SDF：面板向下偏移后的投影
+        let shadow_pos = pixel + vec2f(0.0, shadow_offset_y);
+        let shadow_dist = sdf::squircle_sdf(shadow_pos, center, half_size, corner_radius, 5.0);
+        let shadow_alpha = smoothstep(0.0, shadow_blur, -shadow_dist) * shadow_opacity;
+        let shadow_color = vec3f(0.0);
+        return mix(bg, vec4f(shadow_color, 1.0), shadow_alpha);
     }
 
     // 玻璃区域内：合成所有效果
@@ -83,17 +95,17 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let b = textureSample(background_tex, tex_sampler, refracted_uv + chromatic_offset * 1.02).b;
     let refracted_color = vec3f(r, g, b);
 
-    // --- 3. 磨砂：按厚度混合清晰/模糊 ---
+    // --- 3. 磨砂：按球形弧面厚度混合清晰/模糊 ---
     let sharp = textureSample(background_tex, tex_sampler, refracted_uv);
     let blurred = textureSample(blur_tex, tex_sampler, refracted_uv);
-    let thickness = sdf::bevel_z(dist, bevel_width_px, bevel_depth);
-    let frost_mix = clamp(thickness / bevel_depth, 0.0, 1.0);
+    let bevel_t = clamp(-dist / bevel_width_px, 0.0, 1.0);
+    let thickness = sdf::bevel_z_lens(dist, bevel_width_px, effective_depth);
+    let frost_mix = clamp(thickness / max(effective_depth, 1.0), 0.0, 1.0);
     let frosted = mix(sharp, blurred, frost_mix);
 
-    // --- 4. 从高度场推导 3D 法线 ---
-    let bevel_t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
-    let dz_dt = 6.0 * bevel_t * (1.0 - bevel_t);
-    let slope = dz_dt * bevel_depth / bevel_width_px;
+    // --- 4. 从球形弧面高度场推导 3D 法线 ---
+    let slope_norm = sdf::bevel_slope_lens_norm(bevel_t);
+    let slope = slope_norm * effective_depth / bevel_width_px;
     let sdf_n = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
     let surf_grad = sdf_n * slope;
     let normal_3d = normalize(vec3f(-surf_grad, 1.0));
@@ -101,7 +113,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 5. 菲涅尔：基于 3D 法线（intensity 仅放大掠射角） ---
+    // --- 5. 菲涅尔：基于 3D 法线 ---
     let cos_theta = normal_3d.z;
     let f0 = 0.04;
     let fresnel = f0 + (schlick_fresnel(cos_theta, f0) - f0) * fresnel_intensity;
@@ -110,7 +122,6 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     var specular_total = vec3f(0.0);
     let view_dir = vec3f(0.0, 0.0, 1.0);
 
-    // 光源 0
     if light_count > 0.0 {
         let light_dir = normalize(vec3f(u.light01_pos.xy - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
@@ -118,7 +129,6 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
         specular_total += pow(ndh, specular_shininess) * u.light0_col.xyz * specular_intensity;
     }
 
-    // 光源 1
     if light_count > 1.0 {
         let light_dir = normalize(vec3f(u.light01_pos.zw - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
@@ -126,13 +136,17 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
         specular_total += pow(ndh, specular_shininess) * u.light1_col.xyz * specular_intensity;
     }
 
-    // 光源 2
     if light_count > 2.0 {
         let light_dir = normalize(vec3f(u.light2_pos.xy - pixel, 100.0));
         let half_vec = normalize(view_dir + light_dir);
         let ndh = max(dot(normal_3d, half_vec), 0.0);
         specular_total += pow(ndh, specular_shininess) * u.light2_col.xyz * specular_intensity;
     }
+
+    // --- 7. 玻璃下方阴影（透过玻璃可见） ---
+    let shadow_pos = pixel + vec2f(0.0, shadow_offset_y);
+    let shadow_dist = sdf::squircle_sdf(shadow_pos, center, half_size, corner_radius, 5.0);
+    let shadow_alpha = smoothstep(0.0, shadow_blur, -shadow_dist) * shadow_opacity * 0.4;
 
     // --- 8. 合成 ---
     var color = base_color * bg_opacity;
@@ -142,6 +156,9 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     // 高光降低强度防过曝
     color += specular_total * 0.3;
+
+    // 叠加玻璃下方阴影（暗化玻璃底部）
+    color = mix(color, color * 0.5, shadow_alpha);
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);

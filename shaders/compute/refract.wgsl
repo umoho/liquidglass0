@@ -28,7 +28,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let bevel_width_ratio = u.shape_params.y;
     let bevel_depth = u.shape_params.z;
     let refractive_index = u.shape_params.w;
+    let thickness_multiplier = u.shadow_params.x;
     let bevel_width_px = bevel_width_ratio * min(half_size.x, half_size.y);
+    let effective_depth = bevel_depth * thickness_multiplier;
 
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(p, center, half_size, corner_radius, 5.0);
@@ -39,15 +41,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
         return;
     }
 
-    // 玻璃区域内：计算折射偏移
+    // 玻璃区域内：计算折射偏移（球形弧面轮廓）
     let normal = sdf::sdf_normal(p, center, half_size, corner_radius, 5.0);
-    let t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
-    let dz_dt = 6.0 * t * (1.0 - t);
-    let slope = dz_dt * bevel_depth / bevel_width_px;
+    let t = clamp(-dist / bevel_width_px, 0.0, 1.0);
+    let slope = sdf::bevel_slope_lens_norm(t);
+    let slope_scaled = slope * effective_depth / bevel_width_px;
 
     // 基于曲率的折射：负号使位移向内（凸透镜聚光）
     let eta = 1.0 - 1.0 / refractive_index;
-    let offset = -normal * slope * eta;
+    let offset = -normal * slope_scaled * eta;
 
     textureStore(displacement_out, gid.xy, vec4f(offset, 0.0, 1.0));
 }

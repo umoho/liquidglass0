@@ -25,7 +25,7 @@ struct BlurUniforms {
 
 /// 玻璃面板 + 材质 + 光源的统一 uniform。
 ///
-/// 192 字节（12 × vec4f），`#[repr(C)]` 确保与 WGSL `GlassUniforms` 布局一致。
+/// 208 字节（13 × vec4f），`#[repr(C)]` 确保与 WGSL `GlassUniforms` 布局一致。
 #[repr(C)]
 #[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 struct GlassUniforms {
@@ -53,12 +53,20 @@ struct GlassUniforms {
     light1_col: [f32; 4],
     /// light2.color.r, .g, .b, _pad。
     light2_col: [f32; 4],
+    /// thickness_multiplier, shadow_opacity, shadow_blur, shadow_offset_y。
+    shadow_params: [f32; 4],
 }
 
 impl GlassUniforms {
     /// 从渲染输入构造 uniform 数据。
     fn from_input(input: &RenderInput, panel: &GlassPanel) -> Self {
         let lights = &input.scene.lights;
+
+        // 厚度乘数：尺寸自适应
+        let min_half = panel.half_size.x.min(panel.half_size.y);
+        let reference = panel.reference_size.max(1.0);
+        let thickness_multiplier = (min_half / reference).clamp(1.0, 2.5);
+
         Self {
             panel_info: [
                 panel.center.x,
@@ -112,6 +120,12 @@ impl GlassUniforms {
             light0_col: [lights[0].color.x, lights[0].color.y, lights[0].color.z, 0.0],
             light1_col: [lights[1].color.x, lights[1].color.y, lights[1].color.z, 0.0],
             light2_col: [lights[2].color.x, lights[2].color.y, lights[2].color.z, 0.0],
+            shadow_params: [
+                thickness_multiplier,
+                input.material.shadow_opacity,
+                input.material.shadow_blur,
+                input.material.shadow_offset_y,
+            ],
         }
     }
 }

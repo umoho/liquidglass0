@@ -75,3 +75,41 @@ pub fn bevel_z(distance: f32, bevel_width: f32, bevel_depth: f32) -> f32 {
     let st = t * t * (3.0 - 2.0 * t);
     st * bevel_depth
 }
+
+/// 球形弧面轮廓（凸透镜截面）。
+///
+/// 将 SDF 距离映射为 Z 位移。使用圆形弧线替代平滑步进，
+/// 使边缘斜率最大、中心平坦，更接近真实凸透镜的横截面。
+///
+/// 公式：
+///
+/// $$ t = \max\!\left(-\frac{d}{b_w}, 0.0\right) \quad z = b_d \cdot \left(1 - \sqrt{1 - t^2}\right) $$
+///
+/// # 参数
+///
+/// * `distance` - SDF 距离值
+/// * `bevel_width` - 斜面宽度（像素）
+/// * `bevel_depth` - 斜面最大深度（像素）
+pub fn bevel_z_lens(distance: f32, bevel_width: f32, bevel_depth: f32) -> f32 {
+    let t = (-distance / bevel_width).clamp(0.0, 1.0);
+    bevel_depth * (1.0 - (1.0 - t * t).sqrt())
+}
+
+/// 球形弧面轮廓的斜率（导数）。
+///
+/// 返回 Z 对水平距离的导数 $ \frac{dz}{dx} $，用于折射偏移计算。
+///
+/// 公式：
+///
+/// $$ \frac{dz}{dx} = \frac{b_d \cdot t}{b_w \cdot \sqrt{1 - t^2}} $$
+///
+/// # 参数
+///
+/// 同 [`bevel_z_lens`]。
+pub fn bevel_slope_lens(distance: f32, bevel_width: f32, bevel_depth: f32) -> f32 {
+    let t = (-distance / bevel_width).clamp(0.0, 1.0);
+    if t >= 1.0 {
+        return f32::INFINITY;
+    }
+    bevel_depth * t / (bevel_width * (1.0 - t * t).sqrt())
+}

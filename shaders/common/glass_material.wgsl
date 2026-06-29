@@ -7,7 +7,7 @@
 
 /// 玻璃面板 + 材质 + 光源的统一 uniform。
 ///
-/// 布局：12 × vec4f = 192 bytes。
+/// 布局：13 × vec4f = 208 bytes。
 struct GlassUniforms {
     /// 面板几何：center.xy, half_size.xy。
     panel_info: vec4f,
@@ -33,4 +33,6 @@ struct GlassUniforms {
     light1_col: vec4f,
     /// 光源 2 颜色：r, g, b, _pad。
     light2_col: vec4f,
+    /// 阴影 + 厚度：thickness_multiplier, shadow_opacity, shadow_blur, shadow_offset_y。
+    shadow_params: vec4f,
 }

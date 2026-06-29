@@ -55,3 +55,23 @@ fn bevel_z(distance: f32, bevel_width: f32, bevel_depth: f32) -> f32 {
     let st = t * t * (3.0 - 2.0 * t);
     return st * bevel_depth;
 }
+
+/// 球形弧面轮廓（凸透镜截面）。
+///
+/// 使用圆形弧线替代平滑步进，边缘斜率最大、中心平坦。
+fn bevel_z_lens(distance: f32, bevel_width: f32, bevel_depth: f32) -> f32 {
+    let t = clamp(-distance / bevel_width, 0.0, 1.0);
+    return bevel_depth * (1.0 - sqrt(1.0 - t * t));
+}
+
+/// 球形弧面轮廓的归一化斜率（不含 depth/width 缩放）。
+///
+/// 返回 0~1 之间的归一化斜率因子，
+/// 调用方再乘以 `bevel_depth / bevel_width`。
+/// 当 `t >= 1.0`（完全在斜面外）时返回 1.0 避免除零。
+fn bevel_slope_lens_norm(t: f32) -> f32 {
+    if t >= 1.0 {
+        return 1.0;
+    }
+    return t / sqrt(max(1.0 - t * t, 1e-6));
+}

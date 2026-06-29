@@ -14,6 +14,7 @@ use glam::Vec2;
 /// | `corner_radius` | `22` | 圆角半径（像素） |
 /// | `bevel_width` | `0.15` | 斜面宽度（占半径比例） |
 /// | `bevel_depth` | `40` | 斜面深度（像素） |
+/// | `reference_size` | `200` | 厚度乘数归一化基准尺寸（像素） |
 #[derive(Debug, Clone, PartialEq)]
 pub struct GlassPanel {
     /// 面板中心（像素坐标）。
@@ -36,6 +37,12 @@ pub struct GlassPanel {
     ///
     /// 值越大，斜面越深，折射越强。
     pub bevel_depth: f32,
+
+    /// 厚度乘数归一化基准尺寸（像素）。
+    ///
+    /// `thickness_multiplier = clamp(min(half_size) / reference_size, 1.0, 2.5)`。
+    /// 值越小，相对厚度越大。默认 200px。
+    pub reference_size: f32,
 }
 
 impl Default for GlassPanel {
@@ -46,6 +53,7 @@ impl Default for GlassPanel {
             corner_radius: 22.0,
             bevel_width: 0.15,
             bevel_depth: 40.0,
+            reference_size: 200.0,
         }
     }
 }

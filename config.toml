@@ -9,6 +9,7 @@ half_size = [200.0, 150.0]
 corner_radius = 28.0
 bevel_width = 0.25
 bevel_depth = 55.0
+reference_size = 200.0
 
 # 光学参数
 [optical]

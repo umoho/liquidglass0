@@ -33,6 +33,8 @@ pub struct PanelConfig {
     pub bevel_width: f32,
     /// 斜面深度（像素）。
     pub bevel_depth: f32,
+    /// 厚度乘数归一化基准尺寸（像素）。
+    pub reference_size: f32,
 }
 
 /// 光学参数配置。
@@ -90,6 +92,7 @@ impl Default for PanelConfig {
             corner_radius: 28.0,
             bevel_width: 0.20,
             bevel_depth: 55.0,
+            reference_size: 200.0,
         }
     }
 }
@@ -206,6 +209,7 @@ impl Config {
             corner_radius: self.panel.corner_radius,
             bevel_width: self.panel.bevel_width,
             bevel_depth: self.panel.bevel_depth,
+            reference_size: self.panel.reference_size,
         };
 
         let default_lights = Config::default().lights;
