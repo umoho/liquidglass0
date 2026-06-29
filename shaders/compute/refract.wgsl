@@ -41,11 +41,13 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 
     // 玻璃区域内：计算折射偏移
     let normal = sdf::sdf_normal(p, center, half_size, corner_radius, 5.0);
-    let thickness = sdf::bevel_z(dist, bevel_width_px, bevel_depth);
+    let t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
+    let dz_dt = 6.0 * t * (1.0 - t);
+    let slope = dz_dt * bevel_depth / bevel_width_px;
 
-    // 简化 Snell 定律：偏移 = 法线 × 厚度 × (1 - 1/n)
+    // 基于曲率的折射：负号使位移向内（凸透镜聚光）
     let eta = 1.0 - 1.0 / refractive_index;
-    let offset = normal * thickness * eta;
+    let offset = -normal * slope * eta;
 
     textureStore(displacement_out, gid.xy, vec4f(offset, 0.0, 1.0));
 }

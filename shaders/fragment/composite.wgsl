@@ -92,16 +92,12 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 4. 菲涅尔：基于 bevel 斜率推导掠射角 ---
-    let t = (clamp(dist, -bevel_width_px, 0.0) / bevel_width_px) + 1.0;
-    let dz_dt = 6.0 * t * (1.0 - t);
-    let slope = dz_dt * bevel_depth / bevel_width_px;
-    let view_dot = 1.0 / sqrt(1.0 + slope * slope);
-    let fresnel = schlick_fresnel(view_dot, 0.04) * fresnel_intensity;
+    // --- 4. 菲涅尔：基于边缘距离渐变 ---
+    let edge_t = 1.0 - clamp(-dist / bevel_width_px, 0.0, 1.0);
+    let fresnel = schlick_fresnel(edge_t, 0.04) * fresnel_intensity;
 
-    // --- 5. 镜面高光（仅在 bevel 区域显示） ---
+    // --- 5. 镜面高光 ---
     let normal = sdf::sdf_normal(pixel, center, half_size, corner_radius, 5.0);
-    let bevel_mask = clamp(thickness / max(bevel_depth * 0.5, 0.001), 0.0, 1.0);
     var specular_total = vec3f(0.0);
     let view_dir = vec3f(0.0, 0.0, 1.0);
 
@@ -135,8 +131,8 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 叠加菲涅尔边缘光
     color += fresnel_color * fresnel;
 
-    // 高光限制在 bevel 区域，降低强度防过曝
-    color += specular_total * bevel_mask * 0.7;
+    // 高光降低强度防过曝
+    color += specular_total * 0.3;
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);
