@@ -136,7 +136,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     color += fresnel_color * fresnel;
 
     // 高光限制在 bevel 区域，降低强度防过曝
-    color += specular_total * bevel_mask * 0.4;
+    color += specular_total * bevel_mask * 0.7;
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);

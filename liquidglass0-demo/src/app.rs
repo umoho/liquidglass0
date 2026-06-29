@@ -200,12 +200,12 @@ impl App {
             time: 0.0,
             material: GlassMaterial {
                 // 光学参数
-                refractive_index: 1.52,
+                refractive_index: 1.3,
                 chromatic_strength: 0.03,
-                fresnel_intensity: 1.5,
+                fresnel_intensity: 2.0,
                 specular_intensity: 0.4,
                 specular_shininess: 150.0,
-                blur_radius: 12.0,
+                blur_radius: 20.0,
                 // 材质参数
                 tint_opacity: 0.08,
                 background_opacity: 0.92,
