@@ -12,7 +12,7 @@
 | **4** | 交互：弹簧变形、悬停高光、滚动抬起 |
 | **5** | 打磨：参数系统、多玻璃叠加、性能调优 |
 
-> 当前阶段：Phase 1
+> 当前阶段：Phase 3
 
 ---
 
@@ -30,11 +30,11 @@
 
 ## Phase 2：材质丰富
 
-- [ ] 折射（refraction）：基于 SDF 法线的背景位移采样
-- [ ] 色散（chromatic aberration）：RGB 分离偏移
-- [ ] 菲涅尔边缘光（Fresnel）：Schlick 近似
-- [ ] 镜面高光（specular）：多光源 Blinn-Phong
-- [ ] 磨砂联动（blur）：模糊半径随厚度变化
+- [x] 折射（refraction）：基于 SDF 法线的背景位移采样
+- [x] 色散（chromatic aberration）：RGB 分离偏移
+- [x] 菲涅尔边缘光（Fresnel）：Schlick 近似
+- [x] 镜面高光（specular）：多光源 Blinn-Phong
+- [x] 磨砂联动（blur）：模糊半径随厚度变化
 
 ## Phase 3：曲面与深度
 
