@@ -8,8 +8,7 @@
 //   5. 从球形弧面高度场推导 3D 法线
 //   6. Schlick 菲涅尔 → 边缘发光
 //   7. Blinn-Phong 多光源 → 镜面高光
-//   8. 玻璃下方半透阴影
-//   9. 色调 + 动态范围调整
+//   8. 色调 + 动态范围调整
 
 #import glass_material
 #import sdf
@@ -146,12 +145,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
         specular_total += pow(ndh, specular_shininess) * u.light2_col.xyz * specular_intensity;
     }
 
-    // --- 7. 玻璃下方阴影（透过玻璃可见） ---
-    let shadow_pos = pixel + vec2f(0.0, shadow_offset_y);
-    let shadow_dist = sdf::squircle_sdf(shadow_pos, center, half_size, corner_radius, 5.0);
-    let shadow_alpha = (1.0 - smoothstep(-shadow_blur_norm, 0.0, shadow_dist)) * shadow_opacity * 0.4;
-
-    // --- 8. 合成 ---
+    // --- 7. 合成 ---
     var color = base_color * bg_opacity;
 
     // 叠加菲涅尔边缘光
@@ -159,9 +153,6 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     // 高光降低强度防过曝
     color += specular_total * 0.3;
-
-    // 叠加玻璃下方阴影（暗化玻璃底部）
-    color = mix(color, color * 0.5, shadow_alpha);
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);
