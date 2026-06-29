@@ -17,6 +17,8 @@ pub struct Config {
     pub optical: OpticalConfig,
     /// 材质参数。
     pub material: MaterialConfig,
+    /// 阴影参数。
+    pub shadow: ShadowConfig,
     /// 光源列表（最多 3 个）。
     pub lights: Vec<LightConfig>,
 }
@@ -47,6 +49,8 @@ pub struct OpticalConfig {
     pub chromatic_strength: f32,
     /// 菲涅尔反射强度。
     pub fresnel_intensity: f32,
+    /// 菲涅尔颜色（RGB）。
+    pub fresnel_color: [f32; 3],
     /// 镜面高光强度。
     pub specular_intensity: f32,
     /// 镜面高光锐度。
@@ -61,6 +65,8 @@ pub struct OpticalConfig {
 pub struct MaterialConfig {
     /// 色调叠加强度。
     pub tint_opacity: f32,
+    /// 玻璃底色（RGB）。
+    pub tint_color: [f32; 3],
     /// 背景透过率。
     pub background_opacity: f32,
     /// 饱和度。
@@ -69,6 +75,18 @@ pub struct MaterialConfig {
     pub contrast: f32,
     /// 亮度偏移。
     pub brightness: f32,
+}
+
+/// 阴影参数配置。
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct ShadowConfig {
+    /// 阴影透明度。
+    pub opacity: f32,
+    /// 阴影模糊半径（像素）。
+    pub blur: f32,
+    /// 阴影 Y 偏移（像素）。
+    pub offset_y: f32,
 }
 
 /// 光源配置。
@@ -103,6 +121,7 @@ impl Default for OpticalConfig {
             refractive_index: 1.3,
             chromatic_strength: 0.03,
             fresnel_intensity: 2.0,
+            fresnel_color: [0.9, 0.95, 1.0],
             specular_intensity: 0.4,
             specular_shininess: 150.0,
             blur_radius: 20.0,
@@ -114,10 +133,21 @@ impl Default for MaterialConfig {
     fn default() -> Self {
         Self {
             tint_opacity: 0.08,
+            tint_color: [1.0, 1.0, 1.0],
             background_opacity: 0.92,
             saturation: 1.4,
             contrast: 1.04,
             brightness: 0.08,
+        }
+    }
+}
+
+impl Default for ShadowConfig {
+    fn default() -> Self {
+        Self {
+            opacity: 0.3,
+            blur: 8.0,
+            offset_y: 4.0,
         }
     }
 }
@@ -138,6 +168,7 @@ impl Default for Config {
             panel: PanelConfig::default(),
             optical: OpticalConfig::default(),
             material: MaterialConfig::default(),
+            shadow: ShadowConfig::default(),
             lights: vec![
                 LightConfig {
                     position_factor: [0.2, 0.15],
@@ -185,14 +216,27 @@ impl Config {
             refractive_index: self.optical.refractive_index,
             chromatic_strength: self.optical.chromatic_strength,
             fresnel_intensity: self.optical.fresnel_intensity,
+            fresnel_color: Vec3::new(
+                self.optical.fresnel_color[0],
+                self.optical.fresnel_color[1],
+                self.optical.fresnel_color[2],
+            ),
             specular_intensity: self.optical.specular_intensity,
             specular_shininess: self.optical.specular_shininess,
             blur_radius: self.optical.blur_radius,
+            tint_color: Vec3::new(
+                self.material.tint_color[0],
+                self.material.tint_color[1],
+                self.material.tint_color[2],
+            ),
             tint_opacity: self.material.tint_opacity,
             background_opacity: self.material.background_opacity,
             saturation: self.material.saturation,
             contrast: self.material.contrast,
             brightness: self.material.brightness,
+            shadow_opacity: self.shadow.opacity,
+            shadow_blur: self.shadow.blur,
+            shadow_offset_y: self.shadow.offset_y,
             ..Default::default()
         }
     }
