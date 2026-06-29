@@ -351,11 +351,11 @@ impl GlassRenderer {
         });
 
         // 更新 uniform
-        let sigma = (input.params.blur_radius / 2.0).max(0.5);
+        let sigma = (input.material.blur_radius / 2.0).max(0.5);
         let kernel_half = (3.0 * sigma).ceil() as u32;
         self.blur_uniforms = BlurUniforms {
             texture_size: [size.0, size.1],
-            blur_radius: input.params.blur_radius,
+            blur_radius: input.material.blur_radius,
             kernel_half: kernel_half.max(1),
         };
         self.queue.write_buffer(

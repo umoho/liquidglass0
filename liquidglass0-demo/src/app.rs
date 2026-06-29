@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use liquidglass0_core::{GlassParams, InteractionState};
+use liquidglass0_core::{GlassMaterial, InteractionState, Scene};
 use liquidglass0_render::{EmbeddedLoader, GlassRenderer, RenderInput, RendererConfig};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
@@ -197,11 +197,12 @@ impl App {
             size: self.size,
             interaction: InteractionState::default(),
             time: 0.0,
-            params: GlassParams {
+            material: GlassMaterial {
                 // 调高 blur_radius 让模糊效果更明显，便于 Phase 1 验证。
                 blur_radius: 25.0,
                 ..Default::default()
             },
+            scene: Scene::default(),
         };
 
         let mut encoder = self

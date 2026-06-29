@@ -2,26 +2,12 @@ use glam::Vec3;
 
 /// 玻璃面板材质参数。
 ///
-/// 包含形状、光学、材质、交互、阴影五个分组的可调参数。
+/// 包含光学、材质、交互、阴影四个分组的可调参数。
+/// 面板形状参数见 [`super::panel::GlassPanel`]。
+///
 /// 默认值来自 [`LIQUID_GLASS.md`] 参数表。
 #[derive(Debug, Clone, PartialEq)]
-pub struct GlassParams {
-    // ── 形状 ──
-    /// 圆角半径（像素）。
-    ///
-    /// 值越大，圆角越圆润。
-    pub corner_radius: f32,
-
-    /// 斜面宽度（占半径的比例）。
-    ///
-    /// 值越大，斜面过渡越宽。
-    pub bevel_width: f32,
-
-    /// 斜面深度（像素）。
-    ///
-    /// 值越大，斜面越深，折射越强。
-    pub bevel_depth: f32,
-
+pub struct GlassMaterial {
     // ── 光学 ──
     /// 折射率，范围 1.3 ~ 1.7。
     ///
@@ -113,13 +99,9 @@ pub struct GlassParams {
     pub shadow_offset_y: f32,
 }
 
-impl Default for GlassParams {
+impl Default for GlassMaterial {
     fn default() -> Self {
         Self {
-            corner_radius: 22.0,
-            bevel_width: 0.15,
-            bevel_depth: 40.0,
-
             refractive_index: 1.5,
             chromatic_strength: 0.02,
             fresnel_intensity: 1.0,
