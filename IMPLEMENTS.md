@@ -25,8 +25,8 @@
 - [x] 着色器：blur_horizontal（compute）
 - [x] 着色器：blur_vertical（compute）
 - [x] 管线编排：blur → composite 串联
-- [ ] liquidglass0-demo：winit 窗口 + 背景图渲染
-- [ ] 第一个可验证效果：窗口里看到经过高斯模糊的玻璃面板
+- [x] liquidglass0-demo：winit 窗口 + 背景图渲染
+- [x] 第一个可验证效果：窗口里看到经过高斯模糊的玻璃面板
 
 ## Phase 2：材质丰富
 

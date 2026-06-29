@@ -4,6 +4,7 @@
 //! 一处调整全局生效。
 
 /// 渲染器配置。
+#[derive(Clone)]
 pub struct RendererConfig {
     /// 输出与中间纹理的格式（默认：`Rgba8UnormSrgb`）。
     pub texture_format: wgpu::TextureFormat,
