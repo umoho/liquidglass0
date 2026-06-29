@@ -71,13 +71,16 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(pixel, center, half_size, corner_radius, 5.0);
 
+    // SDF 归一化距离 × min_effective ≈ 像素距离，用于阴影软边换算
+    let min_effective = min(half_size.x, half_size.y) - corner_radius;
+    let shadow_blur_norm = shadow_blur / max(min_effective, 1.0);
+
     // 玻璃区域外：计算阴影，输出背景 + 阴影
     if dist >= 0.0 {
         let bg = textureSample(background_tex, tex_sampler, uv);
-        // 阴影 SDF：面板向下偏移后的投影
         let shadow_pos = pixel + vec2f(0.0, shadow_offset_y);
         let shadow_dist = sdf::squircle_sdf(shadow_pos, center, half_size, corner_radius, 5.0);
-        let shadow_alpha = smoothstep(0.0, shadow_blur, -shadow_dist) * shadow_opacity;
+        let shadow_alpha = (1.0 - smoothstep(-shadow_blur_norm, 0.0, shadow_dist)) * shadow_opacity;
         let shadow_color = vec3f(0.0);
         return mix(bg, vec4f(shadow_color, 1.0), shadow_alpha);
     }
@@ -146,7 +149,7 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // --- 7. 玻璃下方阴影（透过玻璃可见） ---
     let shadow_pos = pixel + vec2f(0.0, shadow_offset_y);
     let shadow_dist = sdf::squircle_sdf(shadow_pos, center, half_size, corner_radius, 5.0);
-    let shadow_alpha = smoothstep(0.0, shadow_blur, -shadow_dist) * shadow_opacity * 0.4;
+    let shadow_alpha = (1.0 - smoothstep(-shadow_blur_norm, 0.0, shadow_dist)) * shadow_opacity * 0.4;
 
     // --- 8. 合成 ---
     var color = base_color * bg_opacity;
