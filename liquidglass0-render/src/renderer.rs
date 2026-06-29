@@ -84,19 +84,19 @@ impl GlassRenderer {
         // --- 加载着色器模块 ---
         let blur_h_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("blur_horizontal"),
-            source: wgpu::ShaderSource::Wgsl(loader.load_wgsl("blur_horizontal").into()),
+            source: loader.load("blur_horizontal"),
         });
         let blur_v_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("blur_vertical"),
-            source: wgpu::ShaderSource::Wgsl(loader.load_wgsl("blur_vertical").into()),
+            source: loader.load("blur_vertical"),
         });
         let vs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("fullscreen_triangle"),
-            source: wgpu::ShaderSource::Wgsl(loader.load_wgsl("fullscreen_triangle").into()),
+            source: loader.load("fullscreen_triangle"),
         });
         let fs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("composite"),
-            source: wgpu::ShaderSource::Wgsl(loader.load_wgsl("composite").into()),
+            source: loader.load("composite"),
         });
 
         // --- bind group layout ---

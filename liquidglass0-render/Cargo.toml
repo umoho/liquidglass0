@@ -7,4 +7,5 @@ license = { workspace = true }
 [dependencies]
 bytemuck = { workspace = true }
 liquidglass0-core = { path = "../liquidglass0-core" }
+naga_oil = "0.22"
 wgpu = { workspace = true }

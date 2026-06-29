@@ -10,4 +10,4 @@ mod shader;
 pub use config::RendererConfig;
 pub use input::RenderInput;
 pub use renderer::GlassRenderer;
-pub use shader::{EmbeddedLoader, ShaderLoader};
+pub use shader::{EmbeddedLoader, NagaOilLoader, ShaderLoader};
