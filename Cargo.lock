@@ -792,6 +792,7 @@ dependencies = [
 name = "liquidglass0-demo"
 version = "0.1.0"
 dependencies = [
+ "glam",
  "liquidglass0-core",
  "liquidglass0-render",
  "pollster",

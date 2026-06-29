@@ -12,6 +12,10 @@ pub struct RendererConfig {
     pub blur_workgroup_width: u32,
     /// 模糊垂直 pass 的工作组高度（默认：256）。
     pub blur_workgroup_height: u32,
+    /// 折射 pass 的工作组宽度（默认：16）。
+    pub refract_workgroup_width: u32,
+    /// 折射 pass 的工作组高度（默认：16）。
+    pub refract_workgroup_height: u32,
 }
 
 impl Default for RendererConfig {
@@ -20,6 +24,8 @@ impl Default for RendererConfig {
             texture_format: wgpu::TextureFormat::Rgba8UnormSrgb,
             blur_workgroup_width: 256,
             blur_workgroup_height: 256,
+            refract_workgroup_width: 16,
+            refract_workgroup_height: 16,
         }
     }
 }

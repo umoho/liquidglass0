@@ -5,8 +5,8 @@
 
 use std::sync::Arc;
 
-use liquidglass0_core::{GlassMaterial, InteractionState, Scene};
-use liquidglass0_render::{EmbeddedLoader, GlassRenderer, RenderInput, RendererConfig};
+use liquidglass0_core::{GlassMaterial, GlassPanel, InteractionState, Light, Scene};
+use liquidglass0_render::{GlassRenderer, NagaOilLoader, RenderInput, RendererConfig};
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
@@ -117,7 +117,7 @@ impl App {
         self.renderer = Some(GlassRenderer::new(
             renderer_device,
             renderer_queue,
-            EmbeddedLoader,
+            NagaOilLoader::default(),
             self.config.clone(),
             self.size,
         ));
@@ -192,17 +192,41 @@ impl App {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
+        let (w, h) = (self.size.0 as f32, self.size.1 as f32);
         let input = RenderInput {
             background: self.background_view.as_ref().unwrap(),
             size: self.size,
             interaction: InteractionState::default(),
             time: 0.0,
             material: GlassMaterial {
-                // 调高 blur_radius 让模糊效果更明显，便于 Phase 1 验证。
-                blur_radius: 25.0,
+                // 调高 blur_radius 让模糊效果更明显。
+                blur_radius: 15.0,
                 ..Default::default()
             },
-            scene: Scene::default(),
+            scene: Scene {
+                panel: GlassPanel {
+                    center: glam::Vec2::new(w / 2.0, h / 2.0),
+                    half_size: glam::Vec2::new(200.0, 150.0),
+                    ..Default::default()
+                },
+                lights: [
+                    Light {
+                        position: glam::Vec2::new(w * 0.3, h * 0.2),
+                        color: glam::Vec3::ONE,
+                        intensity: 0.8,
+                    },
+                    Light {
+                        position: glam::Vec2::new(w * 0.7, h * 0.3),
+                        color: glam::Vec3::new(0.9, 0.95, 1.0),
+                        intensity: 0.6,
+                    },
+                    Light {
+                        position: glam::Vec2::new(w * 0.5, h * 0.8),
+                        color: glam::Vec3::new(1.0, 0.98, 0.95),
+                        intensity: 0.4,
+                    },
+                ],
+            },
         };
 
         let mut encoder = self

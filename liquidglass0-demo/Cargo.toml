@@ -5,6 +5,7 @@ edition = { workspace = true }
 license = { workspace = true }
 
 [dependencies]
+glam = { workspace = true }
 liquidglass0-core = { path = "../liquidglass0-core" }
 liquidglass0-render = { path = "../liquidglass0-render" }
 wgpu = { workspace = true }

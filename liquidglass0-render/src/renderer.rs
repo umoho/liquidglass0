@@ -7,8 +7,9 @@
 use crate::config::RendererConfig;
 use crate::input::RenderInput;
 use crate::shader::ShaderLoader;
+use liquidglass0_core::GlassPanel;
 
-/// 传给 compute shader 的模糊参数。
+/// 传给模糊 compute shader 的参数。
 ///
 /// 16 字节，`#[repr(C)]` 确保与 WGSL 布局一致。
 #[repr(C)]
@@ -22,6 +23,99 @@ struct BlurUniforms {
     kernel_half: u32,
 }
 
+/// 玻璃面板 + 材质 + 光源的统一 uniform。
+///
+/// 192 字节（12 × vec4f），`#[repr(C)]` 确保与 WGSL `GlassUniforms` 布局一致。
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct GlassUniforms {
+    /// center.xy, half_size.xy。
+    panel_info: [f32; 4],
+    /// corner_radius, bevel_width, bevel_depth, refractive_index。
+    shape_params: [f32; 4],
+    /// chromatic_strength, fresnel_intensity, specular_intensity, specular_shininess。
+    optical_a: [f32; 4],
+    /// fresnel_color.r, .g, .b, _pad。
+    fresnel_col: [f32; 4],
+    /// tint_color.r, .g, .b, tint_opacity。
+    tint_col: [f32; 4],
+    /// background_opacity, saturation, contrast, brightness。
+    material: [f32; 4],
+    /// cursor_x, cursor_y, time, light_count。
+    interaction: [f32; 4],
+    /// light0.x, light0.y, light1.x, light1.y。
+    light01_pos: [f32; 4],
+    /// light2.x, light2.y, _pad, _pad。
+    light2_pos: [f32; 4],
+    /// light0.color.r, .g, .b, _pad。
+    light0_col: [f32; 4],
+    /// light1.color.r, .g, .b, _pad。
+    light1_col: [f32; 4],
+    /// light2.color.r, .g, .b, _pad。
+    light2_col: [f32; 4],
+}
+
+impl GlassUniforms {
+    /// 从渲染输入构造 uniform 数据。
+    fn from_input(input: &RenderInput, panel: &GlassPanel) -> Self {
+        let lights = &input.scene.lights;
+        Self {
+            panel_info: [
+                panel.center.x,
+                panel.center.y,
+                panel.half_size.x,
+                panel.half_size.y,
+            ],
+            shape_params: [
+                panel.corner_radius,
+                panel.bevel_width,
+                panel.bevel_depth,
+                input.material.refractive_index,
+            ],
+            optical_a: [
+                input.material.chromatic_strength,
+                input.material.fresnel_intensity,
+                input.material.specular_intensity,
+                input.material.specular_shininess,
+            ],
+            fresnel_col: [
+                input.material.fresnel_color.x,
+                input.material.fresnel_color.y,
+                input.material.fresnel_color.z,
+                0.0,
+            ],
+            tint_col: [
+                input.material.tint_color.x,
+                input.material.tint_color.y,
+                input.material.tint_color.z,
+                input.material.tint_opacity,
+            ],
+            material: [
+                input.material.background_opacity,
+                input.material.saturation,
+                input.material.contrast,
+                input.material.brightness,
+            ],
+            interaction: [
+                input.interaction.cursor_pos.x,
+                input.interaction.cursor_pos.y,
+                input.time,
+                lights.len() as f32,
+            ],
+            light01_pos: [
+                lights[0].position.x,
+                lights[0].position.y,
+                lights[1].position.x,
+                lights[1].position.y,
+            ],
+            light2_pos: [lights[2].position.x, lights[2].position.y, 0.0, 0.0],
+            light0_col: [lights[0].color.x, lights[0].color.y, lights[0].color.z, 0.0],
+            light1_col: [lights[1].color.x, lights[1].color.y, lights[1].color.z, 0.0],
+            light2_col: [lights[2].color.x, lights[2].color.y, lights[2].color.z, 0.0],
+        }
+    }
+}
+
 /// 玻璃渲染器。
 pub struct GlassRenderer {
     /// wgpu 设备。
@@ -33,11 +127,15 @@ pub struct GlassRenderer {
     blur_h_pipeline: wgpu::ComputePipeline,
     /// 垂直模糊 compute pipeline。
     blur_v_pipeline: wgpu::ComputePipeline,
+    /// 折射 compute pipeline。
+    refract_pipeline: wgpu::ComputePipeline,
     /// 合成 render pipeline（全屏三角形 + fragment shader）。
     composite_pipeline: wgpu::RenderPipeline,
 
     /// 模糊 pass 共用的 bind group layout。
     blur_bind_layout: wgpu::BindGroupLayout,
+    /// 折射 pass 的 bind group layout。
+    refract_bind_layout: wgpu::BindGroupLayout,
     /// 合成 pass 的 bind group layout。
     composite_bind_layout: wgpu::BindGroupLayout,
 
@@ -46,8 +144,11 @@ pub struct GlassRenderer {
 
     /// 模糊 uniform buffer（16 bytes）。
     blur_uniform_buf: wgpu::Buffer,
-    /// CPU 侧 uniform 镜像。
+    /// CPU 侧模糊 uniform 镜像。
     blur_uniforms: BlurUniforms,
+
+    /// 玻璃 uniform buffer（192 bytes）。
+    glass_uniform_buf: wgpu::Buffer,
 
     /// 水平模糊中间纹理。
     h_blur_tex: wgpu::Texture,
@@ -58,15 +159,22 @@ pub struct GlassRenderer {
     /// 垂直模糊结果视图。
     v_blur_view: wgpu::TextureView,
 
+    /// 位移纹理（折射偏移）。
+    displacement_tex: wgpu::Texture,
+    /// 位移纹理视图。
+    displacement_view: wgpu::TextureView,
+
     /// 垂直模糊 bind group（输入=h_blur_view，输出=v_blur_view）。
     blur_v_bind_group: wgpu::BindGroup,
-    /// 合成 bind group（v_blur_view + sampler）。
+    /// 折射 bind group（输出=displacement_view，uniform=glass_uniform_buf）。
+    refract_bind_group: wgpu::BindGroup,
+    /// 合成 bind group。
     composite_bind_group: wgpu::BindGroup,
 
     /// 当前中间纹理尺寸。
     current_size: (u32, u32),
     /// 渲染器配置备份。
-    _config: RendererConfig,
+    config: RendererConfig,
 }
 
 impl GlassRenderer {
@@ -90,6 +198,10 @@ impl GlassRenderer {
             label: Some("blur_vertical"),
             source: loader.load("blur_vertical"),
         });
+        let refract_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("refract"),
+            source: loader.load("refract"),
+        });
         let vs_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("fullscreen_triangle"),
             source: loader.load("fullscreen_triangle"),
@@ -103,7 +215,6 @@ impl GlassRenderer {
         let blur_bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("blur_bind_layout"),
             entries: &[
-                // @binding(0) 输入纹理（只读）
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -114,7 +225,6 @@ impl GlassRenderer {
                     },
                     count: None,
                 },
-                // @binding(1) 输出纹理（storage write）
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -125,7 +235,6 @@ impl GlassRenderer {
                     },
                     count: None,
                 },
-                // @binding(2) uniform
                 wgpu::BindGroupLayoutEntry {
                     binding: 2,
                     visibility: wgpu::ShaderStages::COMPUTE,
@@ -139,11 +248,40 @@ impl GlassRenderer {
             ],
         });
 
+        let refract_bind_layout =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                label: Some("refract_bind_layout"),
+                entries: &[
+                    // @binding(0) 位移输出纹理（storage write）
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::StorageTexture {
+                            access: wgpu::StorageTextureAccess::WriteOnly,
+                            format: wgpu::TextureFormat::Rgba16Float,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                        },
+                        count: None,
+                    },
+                    // @binding(1) 玻璃 uniform
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::COMPUTE,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+
         let composite_bind_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: Some("composite_bind_layout"),
                 entries: &[
-                    // @binding(0) 模糊结果纹理
+                    // @binding(0) 背景纹理
                     wgpu::BindGroupLayoutEntry {
                         binding: 0,
                         visibility: wgpu::ShaderStages::FRAGMENT,
@@ -154,11 +292,44 @@ impl GlassRenderer {
                         },
                         count: None,
                     },
-                    // @binding(1) sampler
+                    // @binding(1) 模糊纹理
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    // @binding(2) 位移纹理
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            multisampled: false,
+                        },
+                        count: None,
+                    },
+                    // @binding(3) sampler
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 3,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
                         ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                    // @binding(4) 玻璃 uniform
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 4,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Buffer {
+                            ty: wgpu::BufferBindingType::Uniform,
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
                         count: None,
                     },
                 ],
@@ -170,6 +341,13 @@ impl GlassRenderer {
             bind_group_layouts: &[Some(&blur_bind_layout)],
             immediate_size: 0,
         });
+
+        let refract_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("refract_pipeline_layout"),
+                bind_group_layouts: &[Some(&refract_bind_layout)],
+                immediate_size: 0,
+            });
 
         let composite_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -192,6 +370,15 @@ impl GlassRenderer {
             label: Some("blur_vertical"),
             layout: Some(&blur_pipeline_layout),
             module: &blur_v_module,
+            entry_point: Some("main"),
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+            cache: None,
+        });
+
+        let refract_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+            label: Some("refract"),
+            layout: Some(&refract_pipeline_layout),
+            module: &refract_module,
             entry_point: Some("main"),
             compilation_options: wgpu::PipelineCompilationOptions::default(),
             cache: None,
@@ -252,11 +439,21 @@ impl GlassRenderer {
             kernel_half: 1,
         };
 
+        let glass_uniform_buf = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("glass_uniforms"),
+            size: std::mem::size_of::<GlassUniforms>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
         // --- 中间纹理 ---
         let (h_blur_tex, v_blur_tex, h_blur_view, v_blur_view) =
             Self::create_blur_textures(&device, initial_size);
 
-        // --- V blur bind group（输入 h_blur_view，输出 v_blur_view） ---
+        let (displacement_tex, displacement_view) =
+            Self::create_displacement_texture(&device, initial_size);
+
+        // --- V blur bind group ---
         let blur_v_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("blur_v_bind_group"),
             layout: &blur_bind_layout,
@@ -276,41 +473,60 @@ impl GlassRenderer {
             ],
         });
 
-        // --- composite bind group ---
-        let composite_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("composite_bind_group"),
-            layout: &composite_bind_layout,
+        // --- refract bind group ---
+        let refract_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("refract_bind_group"),
+            layout: &refract_bind_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&v_blur_view),
+                    resource: wgpu::BindingResource::TextureView(&displacement_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
+                    resource: glass_uniform_buf.as_entire_binding(),
                 },
             ],
         });
+
+        // --- composite bind group ---
+        // 需要 background_view，每帧重建
+        // 这里用 v_blur_view 作为占位，render() 中会重建
+        let composite_bind_group = Self::create_composite_bind_group(
+            &device,
+            &composite_bind_layout,
+            &v_blur_view,
+            &v_blur_view,
+            &displacement_view,
+            &sampler,
+            &glass_uniform_buf,
+        );
 
         Self {
             device,
             queue,
             blur_h_pipeline,
             blur_v_pipeline,
+            refract_pipeline,
             composite_pipeline,
             blur_bind_layout,
+            refract_bind_layout,
             composite_bind_layout,
             sampler,
             blur_uniform_buf,
             blur_uniforms,
+            glass_uniform_buf,
             h_blur_tex,
             v_blur_tex,
             h_blur_view,
             v_blur_view,
+            displacement_tex,
+            displacement_view,
             blur_v_bind_group,
+            refract_bind_group,
             composite_bind_group,
             current_size: initial_size,
-            _config: config,
+            config,
         }
     }
 
@@ -329,6 +545,39 @@ impl GlassRenderer {
         if size != self.current_size {
             self.rebuild_for_size(size);
         }
+
+        // 每帧重建 composite bind group（background 可能变化）
+        self.composite_bind_group = Self::create_composite_bind_group(
+            &self.device,
+            &self.composite_bind_layout,
+            input.background,
+            &self.v_blur_view,
+            &self.displacement_view,
+            &self.sampler,
+            &self.glass_uniform_buf,
+        );
+
+        // 更新模糊 uniform
+        let sigma = (input.material.blur_radius / 2.0).max(0.5);
+        let kernel_half = (3.0 * sigma).ceil() as u32;
+        self.blur_uniforms = BlurUniforms {
+            texture_size: [size.0, size.1],
+            blur_radius: input.material.blur_radius,
+            kernel_half: kernel_half.max(1),
+        };
+        self.queue.write_buffer(
+            &self.blur_uniform_buf,
+            0,
+            bytemuck::bytes_of(&self.blur_uniforms),
+        );
+
+        // 更新玻璃 uniform
+        let glass_uniforms = GlassUniforms::from_input(input, &input.scene.panel);
+        self.queue.write_buffer(
+            &self.glass_uniform_buf,
+            0,
+            bytemuck::bytes_of(&glass_uniforms),
+        );
 
         // 水平模糊 bind group（每帧创建，因为 input.background 可能变化）
         let blur_h_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -350,21 +599,22 @@ impl GlassRenderer {
             ],
         });
 
-        // 更新 uniform
-        let sigma = (input.material.blur_radius / 2.0).max(0.5);
-        let kernel_half = (3.0 * sigma).ceil() as u32;
-        self.blur_uniforms = BlurUniforms {
-            texture_size: [size.0, size.1],
-            blur_radius: input.material.blur_radius,
-            kernel_half: kernel_half.max(1),
-        };
-        self.queue.write_buffer(
-            &self.blur_uniform_buf,
-            0,
-            bytemuck::bytes_of(&self.blur_uniforms),
-        );
+        // --- pass 1: 折射位移 ---
+        {
+            let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("refract"),
+                timestamp_writes: None,
+            });
+            pass.set_pipeline(&self.refract_pipeline);
+            pass.set_bind_group(0, &self.refract_bind_group, &[]);
+            let wg_w = self.config.refract_workgroup_width;
+            let wg_h = self.config.refract_workgroup_height;
+            let dx = size.0.div_ceil(wg_w);
+            let dy = size.1.div_ceil(wg_h);
+            pass.dispatch_workgroups(dx, dy, 1);
+        }
 
-        // --- pass 1: 水平模糊 ---
+        // --- pass 2: 水平模糊 ---
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("blur_horizontal"),
@@ -372,12 +622,12 @@ impl GlassRenderer {
             });
             pass.set_pipeline(&self.blur_h_pipeline);
             pass.set_bind_group(0, &blur_h_bind_group, &[]);
-            let wg_w = self._config.blur_workgroup_width;
+            let wg_w = self.config.blur_workgroup_width;
             let dx = size.0.div_ceil(wg_w);
             pass.dispatch_workgroups(dx, size.1, 1);
         }
 
-        // --- pass 2: 垂直模糊 ---
+        // --- pass 3: 垂直模糊 ---
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("blur_vertical"),
@@ -385,12 +635,12 @@ impl GlassRenderer {
             });
             pass.set_pipeline(&self.blur_v_pipeline);
             pass.set_bind_group(0, &self.blur_v_bind_group, &[]);
-            let wg_h = self._config.blur_workgroup_height;
+            let wg_h = self.config.blur_workgroup_height;
             let dy = size.1.div_ceil(wg_h);
             pass.dispatch_workgroups(size.0, dy, 1);
         }
 
-        // --- pass 3: 合成 ---
+        // --- pass 4: 合成 ---
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("composite"),
@@ -418,12 +668,17 @@ impl GlassRenderer {
     fn rebuild_for_size(&mut self, size: (u32, u32)) {
         self.current_size = size;
 
+        // 重建模糊纹理
         let (h_tex, v_tex, h_view, v_view) = Self::create_blur_textures(&self.device, size);
-
         self.h_blur_tex = h_tex;
         self.v_blur_tex = v_tex;
         self.h_blur_view = h_view;
         self.v_blur_view = v_view;
+
+        // 重建位移纹理
+        let (d_tex, d_view) = Self::create_displacement_texture(&self.device, size);
+        self.displacement_tex = d_tex;
+        self.displacement_view = d_view;
 
         // 重建 V blur bind group
         self.blur_v_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -445,24 +700,62 @@ impl GlassRenderer {
             ],
         });
 
-        // 重建 composite bind group
-        self.composite_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("composite_bind_group"),
-            layout: &self.composite_bind_layout,
+        // 重建折射 bind group
+        self.refract_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("refract_bind_group"),
+            layout: &self.refract_bind_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&self.v_blur_view),
+                    resource: wgpu::BindingResource::TextureView(&self.displacement_view),
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    resource: self.glass_uniform_buf.as_entire_binding(),
                 },
             ],
         });
     }
 
-    /// 创建一对可用于 compute r/w 的中间纹理。
+    /// 创建合成 pass 的 bind group。
+    fn create_composite_bind_group(
+        device: &wgpu::Device,
+        layout: &wgpu::BindGroupLayout,
+        background_view: &wgpu::TextureView,
+        blur_view: &wgpu::TextureView,
+        displacement_view: &wgpu::TextureView,
+        sampler: &wgpu::Sampler,
+        glass_uniform_buf: &wgpu::Buffer,
+    ) -> wgpu::BindGroup {
+        device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("composite_bind_group"),
+            layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(background_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::TextureView(blur_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(displacement_view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: glass_uniform_buf.as_entire_binding(),
+                },
+            ],
+        })
+    }
+
+    /// 创建一对可用于 compute r/w 的模糊中间纹理。
     fn create_blur_textures(
         device: &wgpu::Device,
         size: (u32, u32),
@@ -493,5 +786,28 @@ impl GlassRenderer {
         let v_view = v_tex.create_view(&wgpu::TextureViewDescriptor::default());
 
         (h_tex, v_tex, h_view, v_view)
+    }
+
+    /// 创建位移纹理（折射偏移，Rgba16Float）。
+    fn create_displacement_texture(
+        device: &wgpu::Device,
+        size: (u32, u32),
+    ) -> (wgpu::Texture, wgpu::TextureView) {
+        let tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("displacement_texture"),
+            size: wgpu::Extent3d {
+                width: size.0,
+                height: size.1,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Rgba16Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            view_formats: &[],
+        });
+        let view = tex.create_view(&wgpu::TextureViewDescriptor::default());
+        (tex, view)
     }
 }
