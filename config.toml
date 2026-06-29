@@ -7,15 +7,15 @@
 [panel]
 half_size = [200.0, 150.0]
 corner_radius = 28.0
-bevel_width = 0.20
-bevel_depth = 90.0
+bevel_width = 0.25
+bevel_depth = 55.0
 
 # 光学参数
 [optical]
 refractive_index = 1.3
 chromatic_strength = 0.03
 fresnel_intensity = 5.0
-specular_intensity = 0.25
+specular_intensity = 0.15
 specular_shininess = 150.0
 blur_radius = 20.0
 

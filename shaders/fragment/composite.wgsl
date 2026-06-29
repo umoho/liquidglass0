@@ -101,9 +101,10 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // 合并色散和磨砂：色散用于折射区域，磨砂用于整体
     let base_color = mix(frosted.rgb, refracted_color, 0.5);
 
-    // --- 5. 菲涅尔：基于 3D 法线 ---
+    // --- 5. 菲涅尔：基于 3D 法线（intensity 仅放大掠射角） ---
     let cos_theta = normal_3d.z;
-    let fresnel = schlick_fresnel(cos_theta, 0.04) * fresnel_intensity;
+    let f0 = 0.04;
+    let fresnel = f0 + (schlick_fresnel(cos_theta, f0) - f0) * fresnel_intensity;
 
     // --- 6. 镜面高光 ---
     var specular_total = vec3f(0.0);
