@@ -38,10 +38,10 @@
 
 ## Phase 3：曲面与深度
 
-- [ ] 斜面轮廓（bevel）：凸透镜截面
-- [ ] 动态阴影
-- [ ] 厚度感（thickness multiplier）
-- [ ] 尺寸自适应
+- [x] 斜面轮廓（bevel）：凸透镜截面
+- [x] 动态阴影
+- [x] 厚度感（thickness multiplier）
+- [x] 尺寸自适应
 
 ## Phase 4：交互
 
