@@ -5,8 +5,10 @@
 
 use std::sync::Arc;
 
-use liquidglass0_core::{GlassMaterial, GlassPanel, InteractionState, Light, Scene};
+use liquidglass0_core::InteractionState;
 use liquidglass0_render::{GlassRenderer, NagaOilLoader, RenderInput, RendererConfig};
+
+use crate::config;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
@@ -43,6 +45,8 @@ pub struct App {
 
     /// 当前窗口尺寸（像素）。
     size: (u32, u32),
+    /// 运行时配置。
+    glass_config: config::Config,
 }
 
 impl App {
@@ -68,6 +72,7 @@ impl App {
             background_tex: None,
             background_view: None,
             size: (1024, 768),
+            glass_config: config::Config::load("config.toml"),
         }
     }
 
@@ -192,53 +197,13 @@ impl App {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let (w, h) = (self.size.0 as f32, self.size.1 as f32);
         let input = RenderInput {
             background: self.background_view.as_ref().unwrap(),
             size: self.size,
             interaction: InteractionState::default(),
             time: 0.0,
-            material: GlassMaterial {
-                // 光学参数
-                refractive_index: 1.3,
-                chromatic_strength: 0.03,
-                fresnel_intensity: 2.0,
-                specular_intensity: 0.4,
-                specular_shininess: 150.0,
-                blur_radius: 20.0,
-                // 材质参数
-                tint_opacity: 0.08,
-                background_opacity: 0.92,
-                saturation: 1.4,
-                brightness: 0.08,
-                ..Default::default()
-            },
-            scene: Scene {
-                panel: GlassPanel {
-                    center: glam::Vec2::new(w / 2.0, h / 2.0),
-                    half_size: glam::Vec2::new(200.0, 150.0),
-                    corner_radius: 28.0,
-                    bevel_width: 0.20,
-                    bevel_depth: 55.0,
-                },
-                lights: [
-                    Light {
-                        position: glam::Vec2::new(w * 0.2, h * 0.15),
-                        color: glam::Vec3::ONE,
-                        intensity: 0.9,
-                    },
-                    Light {
-                        position: glam::Vec2::new(w * 0.85, h * 0.25),
-                        color: glam::Vec3::new(0.95, 0.97, 1.0),
-                        intensity: 0.5,
-                    },
-                    Light {
-                        position: glam::Vec2::new(w * 0.75, h * 0.8),
-                        color: glam::Vec3::new(1.0, 0.98, 0.95),
-                        intensity: 0.3,
-                    },
-                ],
-            },
+            material: self.glass_config.to_material(),
+            scene: self.glass_config.to_scene(self.size),
         };
 
         let mut encoder = self

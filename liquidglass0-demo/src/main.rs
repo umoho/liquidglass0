@@ -4,6 +4,7 @@
 //! [`liquidglass0_render::GlassRenderer`] 进行高斯模糊渲染。
 
 mod app;
+mod config;
 
 use wgpu::{ExperimentalFeatures, Trace};
 
