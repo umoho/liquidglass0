@@ -199,31 +199,43 @@ impl App {
             interaction: InteractionState::default(),
             time: 0.0,
             material: GlassMaterial {
-                // 调高 blur_radius 让模糊效果更明显。
-                blur_radius: 15.0,
+                // 光学参数
+                refractive_index: 1.52,
+                chromatic_strength: 0.03,
+                fresnel_intensity: 1.5,
+                specular_intensity: 0.4,
+                specular_shininess: 150.0,
+                blur_radius: 12.0,
+                // 材质参数
+                tint_opacity: 0.08,
+                background_opacity: 0.92,
+                saturation: 1.4,
+                brightness: 0.08,
                 ..Default::default()
             },
             scene: Scene {
                 panel: GlassPanel {
                     center: glam::Vec2::new(w / 2.0, h / 2.0),
                     half_size: glam::Vec2::new(200.0, 150.0),
-                    ..Default::default()
+                    corner_radius: 28.0,
+                    bevel_width: 0.20,
+                    bevel_depth: 55.0,
                 },
                 lights: [
                     Light {
-                        position: glam::Vec2::new(w * 0.3, h * 0.2),
+                        position: glam::Vec2::new(w * 0.2, h * 0.15),
                         color: glam::Vec3::ONE,
-                        intensity: 0.8,
+                        intensity: 0.9,
                     },
                     Light {
-                        position: glam::Vec2::new(w * 0.7, h * 0.3),
-                        color: glam::Vec3::new(0.9, 0.95, 1.0),
-                        intensity: 0.6,
+                        position: glam::Vec2::new(w * 0.85, h * 0.25),
+                        color: glam::Vec3::new(0.95, 0.97, 1.0),
+                        intensity: 0.5,
                     },
                     Light {
-                        position: glam::Vec2::new(w * 0.5, h * 0.8),
+                        position: glam::Vec2::new(w * 0.75, h * 0.8),
                         color: glam::Vec3::new(1.0, 0.98, 0.95),
-                        intensity: 0.4,
+                        intensity: 0.3,
                     },
                 ],
             },
