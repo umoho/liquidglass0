@@ -107,7 +107,7 @@ impl GlassUniforms {
             interaction: [
                 input.interaction.cursor_pos.x,
                 input.interaction.cursor_pos.y,
-                input.time,
+                input.interaction.displacement,
                 lights.len() as f32,
             ],
             light01_pos: [

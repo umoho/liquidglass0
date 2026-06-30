@@ -21,7 +21,7 @@ struct GlassUniforms {
     tint_col: vec4f,
     /// 材质：background_opacity, saturation, contrast, brightness。
     material: vec4f,
-    /// 交互：cursor_x, cursor_y, time, light_count。
+    /// 交互：cursor_x, cursor_y, displacement（弹簧变形）, light_count。
     interaction: vec4f,
     /// 光源 0/1 位置：l0.x, l0.y, l1.x, l1.y。
     light01_pos: vec4f,

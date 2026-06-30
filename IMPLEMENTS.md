@@ -12,7 +12,7 @@
 | **4** | 交互：弹簧变形、悬停高光、滚动抬起 |
 | **5** | 打磨：参数系统、多玻璃叠加、性能调优 |
 
-> 当前阶段：Phase 3
+> 当前阶段：Phase 5
 
 ---
 
@@ -45,10 +45,10 @@
 
 ## Phase 4：交互
 
-- [ ] 鼠标悬停：高光跟随
-- [ ] 点击：弹簧式表面变形
-- [ ] 拖拽释放：阻尼回弹
-- [ ] 抬起/滚动自适应
+- [x] 鼠标悬停：高光跟随（shader 光标 Blinn-Phong specular）
+- [x] 点击：弹簧式表面变形（spring physics → displacement → effective_depth）
+- [x] 拖拽释放：阻尼回弹（弹簧积分 + overshoot + Idle 自动收敛）
+- [x] 抬起/滚动自适应（scroll → lift_offset → 阴影加深/衰减）
 
 ## Phase 5：打磨
 

@@ -36,6 +36,11 @@ opacity = 0.35
 blur = 16.0
 offset_y = 20.0
 
+# 交互参数
+[interaction]
+spring_k = 300.0
+damping_b = 20.0
+
 # 光源（最多 3 个）
 [[lights]]
 position_factor = [0.2, 0.15]

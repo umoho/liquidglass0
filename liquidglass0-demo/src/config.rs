@@ -19,6 +19,8 @@ pub struct Config {
     pub material: MaterialConfig,
     /// 阴影参数。
     pub shadow: ShadowConfig,
+    /// 交互参数。
+    pub interaction: InteractionConfig,
     /// 光源列表（最多 3 个）。
     pub lights: Vec<LightConfig>,
 }
@@ -89,6 +91,16 @@ pub struct ShadowConfig {
     pub offset_y: f32,
 }
 
+/// 交互参数配置。
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct InteractionConfig {
+    /// 弹簧刚度。
+    pub spring_k: f32,
+    /// 弹簧阻尼系数。
+    pub damping_b: f32,
+}
+
 /// 光源配置。
 #[derive(Debug, Deserialize)]
 #[serde(default)]
@@ -152,6 +164,15 @@ impl Default for ShadowConfig {
     }
 }
 
+impl Default for InteractionConfig {
+    fn default() -> Self {
+        Self {
+            spring_k: 300.0,
+            damping_b: 20.0,
+        }
+    }
+}
+
 impl Default for LightConfig {
     fn default() -> Self {
         Self {
@@ -169,6 +190,7 @@ impl Default for Config {
             optical: OpticalConfig::default(),
             material: MaterialConfig::default(),
             shadow: ShadowConfig::default(),
+            interaction: InteractionConfig::default(),
             lights: vec![
                 LightConfig {
                     position_factor: [0.2, 0.15],
@@ -237,7 +259,8 @@ impl Config {
             shadow_opacity: self.shadow.opacity,
             shadow_blur: self.shadow.blur,
             shadow_offset_y: self.shadow.offset_y,
-            ..Default::default()
+            deformation_spring_k: self.interaction.spring_k,
+            deformation_damping_b: self.interaction.damping_b,
         }
     }
 
@@ -279,5 +302,15 @@ impl Config {
         }
 
         Scene { panel, lights }
+    }
+
+    /// 弹簧刚度。
+    pub fn deformation_spring_k(&self) -> f32 {
+        self.interaction.spring_k
+    }
+
+    /// 弹簧阻尼系数。
+    pub fn deformation_damping_b(&self) -> f32 {
+        self.interaction.damping_b
     }
 }

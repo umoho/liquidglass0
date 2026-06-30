@@ -4,14 +4,16 @@
 //! 实现 winit [`ApplicationHandler`] 驱动窗口与渲染。
 
 use std::sync::Arc;
+use std::time::Instant;
 
 use liquidglass0_core::InteractionState;
 use liquidglass0_render::{GlassRenderer, NagaOilLoader, RenderInput, RendererConfig};
 
 use crate::config;
+use glam::Vec2;
 use winit::application::ApplicationHandler;
 use winit::dpi::PhysicalSize;
-use winit::event::WindowEvent;
+use winit::event::{ElementState, MouseScrollDelta, WindowEvent};
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowAttributes};
 
@@ -47,6 +49,11 @@ pub struct App {
     size: (u32, u32),
     /// 运行时配置。
     glass_config: config::Config,
+
+    /// 当前交互状态（鼠标位置、弹簧物理量）。
+    interaction: InteractionState,
+    /// 上一帧的时间戳（计算 dt）。
+    last_frame: Instant,
 }
 
 impl App {
@@ -73,6 +80,8 @@ impl App {
             background_view: None,
             size: (1024, 768),
             glass_config: config::Config::load("config.toml"),
+            interaction: InteractionState::default(),
+            last_frame: Instant::now(),
         }
     }
 
@@ -193,6 +202,23 @@ impl App {
             }
         };
 
+        // 弹簧物理更新
+        let now = Instant::now();
+        let dt = (now - self.last_frame).as_secs_f32().min(0.05);
+        self.last_frame = now;
+        self.interaction.update(
+            dt,
+            self.glass_config.deformation_spring_k(),
+            self.glass_config.deformation_damping_b(),
+        );
+
+        // 抬起影响阴影参数
+        let mut material = self.glass_config.to_material();
+        material.shadow_offset_y += self.interaction.lift_offset * 2.0;
+        material.shadow_opacity =
+            (material.shadow_opacity + self.interaction.lift_offset * 0.03).min(1.0);
+        material.shadow_blur += self.interaction.lift_offset * 0.5;
+
         let output_view = surface_tex
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -200,9 +226,9 @@ impl App {
         let input = RenderInput {
             background: self.background_view.as_ref().unwrap(),
             size: self.size,
-            interaction: InteractionState::default(),
-            time: 0.0,
-            material: self.glass_config.to_material(),
+            interaction: self.interaction.clone(),
+            time: self.interaction.time,
+            material,
             scene: self.glass_config.to_scene(self.size),
         };
 
@@ -311,7 +337,7 @@ impl ApplicationHandler for App {
 
     /// 窗口事件分发。
     ///
-    /// 处理关闭、缩放、重绘请求。
+    /// 处理输入（鼠标移动/点击/滚轮）、关闭、缩放、重绘。
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -322,6 +348,23 @@ impl ApplicationHandler for App {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => self.resize(size),
             WindowEvent::RedrawRequested => self.render(),
+            WindowEvent::CursorMoved { position, .. } => {
+                let size = self.size;
+                let x = (position.x as f32) / size.0 as f32;
+                let y = (position.y as f32) / size.1 as f32;
+                self.interaction.cursor_pos = Vec2::new(x.clamp(0.0, 1.0), y.clamp(0.0, 1.0));
+            }
+            WindowEvent::MouseInput { state, .. } => match state {
+                ElementState::Pressed => self.interaction.press(),
+                ElementState::Released => self.interaction.release(),
+            },
+            WindowEvent::MouseWheel { delta, .. } => {
+                let amount = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y.abs(),
+                    MouseScrollDelta::PixelDelta(p) => p.y.abs() as f32,
+                };
+                self.interaction.apply_scroll(amount);
+            }
             _ => {}
         }
     }

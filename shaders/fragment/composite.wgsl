@@ -7,7 +7,7 @@
 //   4. 采样模糊纹理，按球形弧面厚度混合 → 磨砂感
 //   5. 从球形弧面高度场推导 3D 法线
 //   6. Schlick 菲涅尔 → 边缘发光
-//   7. Blinn-Phong 多光源 → 镜面高光
+//   7. Blinn-Phong 多光源 + 光标高光 → 镜面高光
 //   8. 色调 + 动态范围调整
 
 #import glass_material
@@ -65,7 +65,8 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let shadow_opacity = u.shadow_params.y;
     let shadow_blur = u.shadow_params.z;
     let shadow_offset_y = u.shadow_params.w;
-    let effective_depth = bevel_depth * thickness_multiplier;
+    let displacement = u.interaction.z;
+    let effective_depth = bevel_depth * thickness_multiplier * (1.0 - displacement);
 
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(pixel, center, half_size, corner_radius, 5.0);
@@ -145,14 +146,23 @@ fn main(@location(0) uv: vec2f) -> @location(0) vec4f {
         specular_total += pow(ndh, specular_shininess) * u.light2_col.xyz * specular_intensity;
     }
 
-    // --- 7. 合成 ---
+    // --- 7. 光标高光（交互跟随，不经过 ×0.3 衰减） ---
+    let cursor_norm = u.interaction.xy;
+    let cursor_pixel = cursor_norm * tex_size;
+    let cursor_light_dir = normalize(vec3f(cursor_pixel - pixel, 80.0));
+    let cursor_half = normalize(view_dir + cursor_light_dir);
+    let cursor_ndh = max(dot(normal_3d, cursor_half), 0.0);
+    let cursor_spec = pow(cursor_ndh, specular_shininess * 0.3);
+
+    // --- 8. 合成 ---
     var color = base_color * bg_opacity;
 
     // 叠加菲涅尔边缘光
     color += fresnel_color * fresnel;
 
-    // 高光降低强度防过曝
+    // 高光降低强度防过曝（不含光标高光，光标单独叠加）
     color += specular_total * 0.3;
+    color += cursor_spec * specular_intensity * 1.5;
 
     // 叠加色调
     color = mix(color, tint_color, tint_opacity);

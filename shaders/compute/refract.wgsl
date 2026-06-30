@@ -29,8 +29,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let bevel_depth = u.shape_params.z;
     let refractive_index = u.shape_params.w;
     let thickness_multiplier = u.shadow_params.x;
+    let displacement = u.interaction.z;
     let bevel_width_px = bevel_width_ratio * min(half_size.x, half_size.y);
-    let effective_depth = bevel_depth * thickness_multiplier;
+    let effective_depth = bevel_depth * thickness_multiplier * (1.0 - displacement);
 
     // 计算 SDF 距离
     let dist = sdf::squircle_sdf(p, center, half_size, corner_radius, 5.0);
