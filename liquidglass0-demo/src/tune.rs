@@ -98,7 +98,8 @@ pub struct TuneApp {
     tint_color: [f32; 3],
 
     // 滚动
-    scroll_handle: ScrollHandle,
+    /// 手动管理的垂直滚动偏移（像素，负值 = 向下滚动）。
+    scroll_offset: f32,
 
     // 拖动状态（delta 式跟踪）
     drag_active: bool,
@@ -159,7 +160,7 @@ impl TuneApp {
             interaction_params,
             fresnel_color: fresnel,
             tint_color: tint,
-            scroll_handle: ScrollHandle::new(),
+            scroll_offset: 0.0,
             drag_active: false,
             drag_slider_idx: None,
             drag_start_x: None,
@@ -401,11 +402,27 @@ impl Render for TuneApp {
                             .id("control-panel")
                             .w(px(PANEL_WIDTH))
                             .h_full()
-                            .overflow_y_scroll()
-                            .track_scroll(&self.scroll_handle)
+                            .overflow_hidden()
                             .border_l_1()
                             .border_color(BORDER)
-                            .child(self.render_controls(cx)),
+                            .on_scroll_wheel(cx.listener(
+                                |this, e: &ScrollWheelEvent, _, cx| {
+                                    let dy = match e.delta {
+                                        ScrollDelta::Lines(lines) => lines.y * 20.0,
+                                        ScrollDelta::Pixels(px_val) => f32::from(px_val.y),
+                                    };
+                                    // macOS 触控板：delta > 0 = 向上滚（内容下移）
+                                    // scroll_offset < 0 = 内容上移（向下滚动）
+                                    this.scroll_offset =
+                                        (this.scroll_offset + dy).clamp(-800.0, 0.0);
+                                    cx.notify();
+                                },
+                            ))
+                            .child(
+                                div()
+                                    .pt(px(self.scroll_offset))
+                                    .child(self.render_controls(cx)),
+                            ),
                     ),
             )
     }
