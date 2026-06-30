@@ -1,0 +1,4 @@
+# gpui 0.2.2 的 build.rs 需要 macOS SDK 路径来编译 Metal 着色器
+# xcrun --show-sdk-path 返回 /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+[env]
+SDKROOT = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
