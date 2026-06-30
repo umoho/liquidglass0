@@ -3,8 +3,10 @@
   "mcp": {
     "liquidglass0": {
       "type": "local",
-      "command": ["./run-mcp.sh"],
-      "timeout": 30000
+      "command": ["bash", "run-mcp.sh"],
+      "cwd": ".",
+      "timeout": 30000,
+      "enabled": true
     }
   }
 }
