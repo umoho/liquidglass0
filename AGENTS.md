@@ -181,3 +181,11 @@ devlog/YYYY-MM-DD_slug-kebab-case.md
 
 *下一份日志应引用本文件：`2026-06-29_slug.md`*
 ```
+
+## MCP 调试工具
+
+调试渲染效果时优先使用 `liquidglass0` MCP 工具：
+
+- `capture` — 渲染并捕获纹理
+- `get_config` / `set_param` / `set_params` / `reset_params` — 读写 config.toml
+- `read_shader` / `update_shader` — 读写着色器
