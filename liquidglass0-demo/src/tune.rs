@@ -97,6 +97,9 @@ pub struct TuneApp {
     fresnel_color: [f32; 3],
     tint_color: [f32; 3],
 
+    // 滚动
+    scroll_handle: ScrollHandle,
+
     // 拖动状态（delta 式跟踪）
     drag_active: bool,
     drag_slider_idx: Option<(usize, usize)>,
@@ -156,6 +159,7 @@ impl TuneApp {
             interaction_params,
             fresnel_color: fresnel,
             tint_color: tint,
+            scroll_handle: ScrollHandle::new(),
             drag_active: false,
             drag_slider_idx: None,
             drag_start_x: None,
@@ -398,6 +402,7 @@ impl Render for TuneApp {
                             .w(px(PANEL_WIDTH))
                             .h_full()
                             .overflow_y_scroll()
+                            .track_scroll(&self.scroll_handle)
                             .border_l_1()
                             .border_color(BORDER)
                             .child(self.render_controls(cx)),
