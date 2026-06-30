@@ -115,37 +115,170 @@ impl TuneApp {
         let opt = |fmt: fn(f32) -> String| fmt;
 
         let panel_params = vec![
-            ParamSlider::new("圆角半径", 0.0, 80.0, 1.0, config.panel.corner_radius, opt(|v| format!("{v:.0} px"))),
-            ParamSlider::new("倒角宽度", 0.0, 0.5, 0.01, config.panel.bevel_width, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("倒角深度", 0.0, 120.0, 1.0, config.panel.bevel_depth, opt(|v| format!("{v:.0} px"))),
+            ParamSlider::new(
+                "圆角半径",
+                0.0,
+                80.0,
+                1.0,
+                config.panel.corner_radius,
+                opt(|v| format!("{v:.0} px")),
+            ),
+            ParamSlider::new(
+                "倒角宽度",
+                0.0,
+                0.5,
+                0.01,
+                config.panel.bevel_width,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "倒角深度",
+                0.0,
+                120.0,
+                1.0,
+                config.panel.bevel_depth,
+                opt(|v| format!("{v:.0} px")),
+            ),
         ];
 
         let optical_params = vec![
-            ParamSlider::new("折射率", 1.0, 2.0, 0.01, config.optical.refractive_index, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("色散强度", 0.0, 0.2, 0.001, config.optical.chromatic_strength, opt(|v| format!("{v:.3}"))),
-            ParamSlider::new("菲涅尔强度", 0.0, 10.0, 0.1, config.optical.fresnel_intensity, opt(|v| format!("{v:.1}"))),
-            ParamSlider::new("高光强度", 0.0, 2.0, 0.01, config.optical.specular_intensity, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("高光锐度", 1.0, 500.0, 1.0, config.optical.specular_shininess, opt(|v| format!("{v:.0}"))),
-            ParamSlider::new("模糊半径", 0.0, 50.0, 0.5, config.optical.blur_radius, opt(|v| format!("{v:.1} px"))),
+            ParamSlider::new(
+                "折射率",
+                1.0,
+                2.0,
+                0.01,
+                config.optical.refractive_index,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "色散强度",
+                0.0,
+                0.2,
+                0.001,
+                config.optical.chromatic_strength,
+                opt(|v| format!("{v:.3}")),
+            ),
+            ParamSlider::new(
+                "菲涅尔强度",
+                0.0,
+                10.0,
+                0.1,
+                config.optical.fresnel_intensity,
+                opt(|v| format!("{v:.1}")),
+            ),
+            ParamSlider::new(
+                "高光强度",
+                0.0,
+                2.0,
+                0.01,
+                config.optical.specular_intensity,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "高光锐度",
+                1.0,
+                500.0,
+                1.0,
+                config.optical.specular_shininess,
+                opt(|v| format!("{v:.0}")),
+            ),
+            ParamSlider::new(
+                "模糊半径",
+                0.0,
+                50.0,
+                0.5,
+                config.optical.blur_radius,
+                opt(|v| format!("{v:.1} px")),
+            ),
         ];
 
         let material_params = vec![
-            ParamSlider::new("底色强度", 0.0, 1.0, 0.01, config.material.tint_opacity, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("透过率", 0.0, 1.0, 0.01, config.material.background_opacity, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("饱和度", 0.0, 3.0, 0.05, config.material.saturation, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("对比度", 0.0, 3.0, 0.01, config.material.contrast, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("亮度", -1.0, 1.0, 0.01, config.material.brightness, opt(|v| format!("{v:+.2}"))),
+            ParamSlider::new(
+                "底色强度",
+                0.0,
+                1.0,
+                0.01,
+                config.material.tint_opacity,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "透过率",
+                0.0,
+                1.0,
+                0.01,
+                config.material.background_opacity,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "饱和度",
+                0.0,
+                3.0,
+                0.05,
+                config.material.saturation,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "对比度",
+                0.0,
+                3.0,
+                0.01,
+                config.material.contrast,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "亮度",
+                -1.0,
+                1.0,
+                0.01,
+                config.material.brightness,
+                opt(|v| format!("{v:+.2}")),
+            ),
         ];
 
         let shadow_params = vec![
-            ParamSlider::new("不透明度", 0.0, 1.0, 0.01, config.shadow.opacity, opt(|v| format!("{v:.2}"))),
-            ParamSlider::new("模糊", 0.0, 40.0, 0.5, config.shadow.blur, opt(|v| format!("{v:.1} px"))),
-            ParamSlider::new("Y 偏移", 0.0, 30.0, 1.0, config.shadow.offset_y, opt(|v| format!("{v:.0} px"))),
+            ParamSlider::new(
+                "不透明度",
+                0.0,
+                1.0,
+                0.01,
+                config.shadow.opacity,
+                opt(|v| format!("{v:.2}")),
+            ),
+            ParamSlider::new(
+                "模糊",
+                0.0,
+                40.0,
+                0.5,
+                config.shadow.blur,
+                opt(|v| format!("{v:.1} px")),
+            ),
+            ParamSlider::new(
+                "Y 偏移",
+                0.0,
+                30.0,
+                1.0,
+                config.shadow.offset_y,
+                opt(|v| format!("{v:.0} px")),
+            ),
         ];
 
         let interaction_params = vec![
-            ParamSlider::new("弹簧刚度", 50.0, 600.0, 10.0, config.interaction.spring_k, opt(|v| format!("{v:.0}"))),
-            ParamSlider::new("阻尼系数", 5.0, 50.0, 1.0, config.interaction.damping_b, opt(|v| format!("{v:.0}"))),
+            ParamSlider::new(
+                "弹簧刚度",
+                50.0,
+                600.0,
+                10.0,
+                config.interaction.spring_k,
+                opt(|v| format!("{v:.0}")),
+            ),
+            ParamSlider::new(
+                "阻尼系数",
+                5.0,
+                50.0,
+                1.0,
+                config.interaction.damping_b,
+                opt(|v| format!("{v:.0}")),
+            ),
         ];
 
         let fresnel = config.optical.fresnel_color;
@@ -282,16 +415,66 @@ impl TuneApp {
 
 // ── 硬编码颜色 ──
 
-const SURFACE: Rgba = Rgba { r: 0.12, g: 0.12, b: 0.14, a: 1.0 };
-const ACCENT: Rgba = Rgba { r: 0.3, g: 0.5, b: 0.9, a: 1.0 };
-const ACCENT_HOVER: Rgba = Rgba { r: 0.35, g: 0.55, b: 0.95, a: 1.0 };
-const THUMB_BG: Rgba = Rgba { r: 0.85, g: 0.85, b: 0.87, a: 1.0 };
-const MUTED_BG: Rgba = Rgba { r: 0.15, g: 0.15, b: 0.17, a: 1.0 };
-const BORDER: Rgba = Rgba { r: 0.22, g: 0.22, b: 0.25, a: 1.0 };
-const TEXT_DIM: Rgba = Rgba { r: 1.0, g: 1.0, b: 1.0, a: 0.6 };
-const TRACK_BG: Rgba = Rgba { r: 0.25, g: 0.25, b: 0.28, a: 1.0 };
-const HOVER_BG: Rgba = Rgba { r: 0.2, g: 0.2, b: 0.22, a: 1.0 };
-const PREVIEW_BORDER: Rgba = Rgba { r: 0.3, g: 0.3, b: 0.35, a: 1.0 };
+const SURFACE: Rgba = Rgba {
+    r: 0.12,
+    g: 0.12,
+    b: 0.14,
+    a: 1.0,
+};
+const ACCENT: Rgba = Rgba {
+    r: 0.3,
+    g: 0.5,
+    b: 0.9,
+    a: 1.0,
+};
+const ACCENT_HOVER: Rgba = Rgba {
+    r: 0.35,
+    g: 0.55,
+    b: 0.95,
+    a: 1.0,
+};
+const THUMB_BG: Rgba = Rgba {
+    r: 0.85,
+    g: 0.85,
+    b: 0.87,
+    a: 1.0,
+};
+const MUTED_BG: Rgba = Rgba {
+    r: 0.15,
+    g: 0.15,
+    b: 0.17,
+    a: 1.0,
+};
+const BORDER: Rgba = Rgba {
+    r: 0.22,
+    g: 0.22,
+    b: 0.25,
+    a: 1.0,
+};
+const TEXT_DIM: Rgba = Rgba {
+    r: 1.0,
+    g: 1.0,
+    b: 1.0,
+    a: 0.6,
+};
+const TRACK_BG: Rgba = Rgba {
+    r: 0.25,
+    g: 0.25,
+    b: 0.28,
+    a: 1.0,
+};
+const HOVER_BG: Rgba = Rgba {
+    r: 0.2,
+    g: 0.2,
+    b: 0.22,
+    a: 1.0,
+};
+const PREVIEW_BORDER: Rgba = Rgba {
+    r: 0.3,
+    g: 0.3,
+    b: 0.35,
+    a: 1.0,
+};
 
 // ── GPUI Render ──
 
@@ -405,19 +588,16 @@ impl Render for TuneApp {
                             .overflow_hidden()
                             .border_l_1()
                             .border_color(BORDER)
-                            .on_scroll_wheel(cx.listener(
-                                |this, e: &ScrollWheelEvent, _, cx| {
-                                    let dy = match e.delta {
-                                        ScrollDelta::Lines(lines) => lines.y * 20.0,
-                                        ScrollDelta::Pixels(px_val) => f32::from(px_val.y),
-                                    };
-                                    // macOS 触控板：delta > 0 = 向上滚（内容下移）
-                                    // scroll_offset < 0 = 内容上移（向下滚动）
-                                    this.scroll_offset =
-                                        (this.scroll_offset + dy).clamp(-800.0, 0.0);
-                                    cx.notify();
-                                },
-                            ))
+                            .on_scroll_wheel(cx.listener(|this, e: &ScrollWheelEvent, _, cx| {
+                                let dy = match e.delta {
+                                    ScrollDelta::Lines(lines) => lines.y * 20.0,
+                                    ScrollDelta::Pixels(px_val) => f32::from(px_val.y),
+                                };
+                                // macOS 触控板：delta > 0 = 向上滚（内容下移）
+                                // scroll_offset < 0 = 内容上移（向下滚动）
+                                this.scroll_offset = (this.scroll_offset + dy).clamp(-800.0, 0.0);
+                                cx.notify();
+                            }))
                             .child(
                                 div()
                                     .pt(px(self.scroll_offset))
@@ -433,7 +613,11 @@ impl TuneApp {
         let fresnel = self.fresnel_color;
         let tint = self.tint_color;
 
-        div().flex().flex_col().gap_1().p_3()
+        div()
+            .flex()
+            .flex_col()
+            .gap_1()
+            .p_3()
             .child(self.render_section("面板形状"))
             .child(self.render_slider_group(0, cx))
             .child(self.render_section("光学参数"))
@@ -484,7 +668,10 @@ impl TuneApp {
         let label = slider.label.clone();
         let display = SharedString::from(display.to_string());
 
-        div().flex().flex_col().gap_0p5()
+        div()
+            .flex()
+            .flex_col()
+            .gap_0p5()
             .child(
                 div()
                     .flex()
@@ -576,8 +763,16 @@ impl TuneApp {
         label: &'static str,
         color: [f32; 3],
     ) -> impl IntoElement {
-        let swatch = Rgba { r: color[0], g: color[1], b: color[2], a: 1.0 };
-        div().flex().flex_col().gap_1()
+        let swatch = Rgba {
+            r: color[0],
+            g: color[1],
+            b: color[2],
+            a: 1.0,
+        };
+        div()
+            .flex()
+            .flex_col()
+            .gap_1()
             .child(
                 div()
                     .flex()
@@ -600,10 +795,25 @@ impl TuneApp {
                     ),
             )
             .child(
-                div().flex().flex_row().gap_1()
-                    .child(div().flex_1().child(Self::render_mini_slider_static("R", color[0], cx)))
-                    .child(div().flex_1().child(Self::render_mini_slider_static("G", color[1], cx)))
-                    .child(div().flex_1().child(Self::render_mini_slider_static("B", color[2], cx))),
+                div()
+                    .flex()
+                    .flex_row()
+                    .gap_1()
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(Self::render_mini_slider_static("R", color[0], cx)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(Self::render_mini_slider_static("G", color[1], cx)),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .child(Self::render_mini_slider_static("B", color[2], cx)),
+                    ),
             )
     }
 
@@ -615,13 +825,21 @@ impl TuneApp {
         let pct = value.clamp(0.0, 1.0);
         let display = format!("{value:.2}");
 
-        div().flex().flex_col().gap_0p5()
+        div()
+            .flex()
+            .flex_col()
+            .gap_0p5()
             .child(
                 div()
                     .flex()
                     .flex_row()
                     .justify_between()
-                    .child(div().text_xs().text_color(TEXT_DIM).child(SharedString::from(label)))
+                    .child(
+                        div()
+                            .text_xs()
+                            .text_color(TEXT_DIM)
+                            .child(SharedString::from(label)),
+                    )
                     .child(
                         div()
                             .text_xs()
@@ -631,7 +849,12 @@ impl TuneApp {
             )
             .child(
                 div().h(px(16.0)).w_full().flex().items_center().child(
-                    div().relative().w_full().h(px(4.0)).rounded_full().bg(TRACK_BG)
+                    div()
+                        .relative()
+                        .w_full()
+                        .h(px(4.0))
+                        .rounded_full()
+                        .bg(TRACK_BG)
                         .child(
                             div()
                                 .absolute()

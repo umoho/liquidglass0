@@ -1,0 +1,23 @@
+[package]
+name = "liquidglass0-mcp"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+
+[dependencies]
+liquidglass0-core = { path = "../liquidglass0-core" }
+liquidglass0-render = { path = "../liquidglass0-render" }
+wgpu = { workspace = true }
+glam = { workspace = true }
+
+rmcp = { version = "2.0.0", features = ["transport-io"] }
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"] }
+schemars = "1.2"
+
+image = "0.25.10"
+half = "2.7.1"
+
+toml = "1.1.2"
+toml_edit = "0.23"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"

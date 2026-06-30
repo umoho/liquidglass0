@@ -130,6 +130,20 @@ impl GlassUniforms {
     }
 }
 
+/// 中间纹理只读句柄集合。
+///
+/// 由 [`GlassRenderer::intermediate_textures`] 返回。
+/// 在 `render()` 调用后，这些纹理的内容为本帧最新值。
+/// 外部调试工具可通过 `copy_texture_to_buffer` 将内容读回 CPU。
+pub struct IntermediateTextures<'a> {
+    /// 折射位移纹理。
+    pub displacement: &'a wgpu::Texture,
+    /// 水平模糊中间纹理。
+    pub h_blur: &'a wgpu::Texture,
+    /// 垂直模糊中间纹理。
+    pub v_blur: &'a wgpu::Texture,
+}
+
 /// 玻璃渲染器。
 pub struct GlassRenderer {
     /// wgpu 设备。
@@ -189,6 +203,24 @@ pub struct GlassRenderer {
     current_size: (u32, u32),
     /// 渲染器配置备份。
     config: RendererConfig,
+
+    // 着色器模块句柄，用于热更新时重建管线
+    /// 水平模糊着色器模块。
+    blur_h_module: wgpu::ShaderModule,
+    /// 垂直模糊着色器模块。
+    blur_v_module: wgpu::ShaderModule,
+    /// 折射着色器模块。
+    refract_module: wgpu::ShaderModule,
+    /// 全屏三角形顶点着色器模块。
+    vs_module: wgpu::ShaderModule,
+    /// 合成片段着色器模块。
+    fs_module: wgpu::ShaderModule,
+    /// 管线重建用的 pipeline layout。
+    blur_pipeline_layout: wgpu::PipelineLayout,
+    refract_pipeline_layout: wgpu::PipelineLayout,
+    composite_pipeline_layout: wgpu::PipelineLayout,
+    /// naga_oil composer，用于热更新时解析 `#import`。
+    composer: std::cell::RefCell<naga_oil::compose::Composer>,
 }
 
 impl GlassRenderer {
@@ -516,6 +548,24 @@ impl GlassRenderer {
             &glass_uniform_buf,
         );
 
+        // 热更新用的 composer
+        let mut composer = naga_oil::compose::Composer::default();
+        for (name, source) in &[
+            ("sdf", include_str!("../../shaders/common/sdf.wgsl")),
+            (
+                "glass_material",
+                include_str!("../../shaders/common/glass_material.wgsl"),
+            ),
+        ] {
+            composer
+                .add_composable_module(naga_oil::compose::ComposableModuleDescriptor {
+                    source,
+                    file_path: &format!("{name}.wgsl"),
+                    ..Default::default()
+                })
+                .unwrap_or_else(|e| panic!("注册公共模块 {name} 失败: {e}"));
+        }
+
         Self {
             device,
             queue,
@@ -541,7 +591,181 @@ impl GlassRenderer {
             composite_bind_group,
             current_size: initial_size,
             config,
+            blur_h_module,
+            blur_v_module,
+            refract_module,
+            vs_module,
+            fs_module,
+            blur_pipeline_layout,
+            refract_pipeline_layout,
+            composite_pipeline_layout,
+            composer: std::cell::RefCell::new(composer),
         }
+    }
+
+    /// 返回当前中间纹理的只读句柄。
+    ///
+    /// 在 `render()` 调用后纹理内容为本帧最新值。
+    pub fn intermediate_textures(&self) -> IntermediateTextures<'_> {
+        IntermediateTextures {
+            displacement: &self.displacement_tex,
+            h_blur: &self.h_blur_tex,
+            v_blur: &self.v_blur_tex,
+        }
+    }
+
+    /// 返回当前中间纹理尺寸。
+    pub fn current_size(&self) -> (u32, u32) {
+        self.current_size
+    }
+
+    /// 热更新着色器并重建对应管线。
+    ///
+    /// `source` 为含 `#import` 的 WGSL 源码，
+    /// 内部用 naga_oil 解析公共模块依赖并重建管线。
+    ///
+    /// # 参数
+    ///
+    /// * `name` - 着色器名称（如 `"composite"`、`"refract"`）
+    /// * `wgsl_source` - 新的 WGSL 源码
+    ///
+    /// # 错误
+    ///
+    /// naga 编译失败或管线重建失败时返回错误。
+    pub fn reload_shader(&mut self, name: &str, wgsl_source: &str) -> Result<(), String> {
+        let naga_module = self
+            .composer
+            .borrow_mut()
+            .make_naga_module(naga_oil::compose::NagaModuleDescriptor {
+                source: wgsl_source,
+                file_path: &format!("{name}.wgsl"),
+                ..Default::default()
+            })
+            .map_err(|e| format!("编译着色器 {name} 失败: {e}"))?;
+
+        let source = wgpu::ShaderSource::Naga(std::borrow::Cow::Owned(naga_module));
+        let new_module = self
+            .device
+            .create_shader_module(wgpu::ShaderModuleDescriptor {
+                label: Some(name),
+                source,
+            });
+
+        match name {
+            "blur_horizontal" => {
+                let pipeline =
+                    self.device
+                        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                            label: Some("blur_horizontal"),
+                            layout: Some(&self.blur_pipeline_layout),
+                            module: &new_module,
+                            entry_point: Some("main"),
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            cache: None,
+                        });
+                self.blur_h_module = new_module;
+                self.blur_h_pipeline = pipeline;
+            }
+            "blur_vertical" => {
+                let pipeline =
+                    self.device
+                        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                            label: Some("blur_vertical"),
+                            layout: Some(&self.blur_pipeline_layout),
+                            module: &new_module,
+                            entry_point: Some("main"),
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            cache: None,
+                        });
+                self.blur_v_module = new_module;
+                self.blur_v_pipeline = pipeline;
+            }
+            "refract" => {
+                let pipeline =
+                    self.device
+                        .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                            label: Some("refract"),
+                            layout: Some(&self.refract_pipeline_layout),
+                            module: &new_module,
+                            entry_point: Some("main"),
+                            compilation_options: wgpu::PipelineCompilationOptions::default(),
+                            cache: None,
+                        });
+                self.refract_module = new_module;
+                self.refract_pipeline = pipeline;
+            }
+            "composite" => {
+                let pipeline =
+                    self.device
+                        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                            label: Some("composite"),
+                            layout: Some(&self.composite_pipeline_layout),
+                            vertex: wgpu::VertexState {
+                                module: &self.vs_module,
+                                entry_point: Some("main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                buffers: &[],
+                            },
+                            primitive: wgpu::PrimitiveState {
+                                topology: wgpu::PrimitiveTopology::TriangleList,
+                                ..Default::default()
+                            },
+                            depth_stencil: None,
+                            multisample: wgpu::MultisampleState::default(),
+                            fragment: Some(wgpu::FragmentState {
+                                module: &new_module,
+                                entry_point: Some("main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                targets: &[Some(wgpu::ColorTargetState {
+                                    format: self.config.texture_format,
+                                    blend: Some(wgpu::BlendState::REPLACE),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })],
+                            }),
+                            multiview_mask: None,
+                            cache: None,
+                        });
+                self.fs_module = new_module;
+                self.composite_pipeline = pipeline;
+            }
+            "fullscreen_triangle" => {
+                let pipeline =
+                    self.device
+                        .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                            label: Some("composite"),
+                            layout: Some(&self.composite_pipeline_layout),
+                            vertex: wgpu::VertexState {
+                                module: &new_module,
+                                entry_point: Some("main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                buffers: &[],
+                            },
+                            primitive: wgpu::PrimitiveState {
+                                topology: wgpu::PrimitiveTopology::TriangleList,
+                                ..Default::default()
+                            },
+                            depth_stencil: None,
+                            multisample: wgpu::MultisampleState::default(),
+                            fragment: Some(wgpu::FragmentState {
+                                module: &self.fs_module,
+                                entry_point: Some("main"),
+                                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                                targets: &[Some(wgpu::ColorTargetState {
+                                    format: self.config.texture_format,
+                                    blend: Some(wgpu::BlendState::REPLACE),
+                                    write_mask: wgpu::ColorWrites::ALL,
+                                })],
+                            }),
+                            multiview_mask: None,
+                            cache: None,
+                        });
+                self.vs_module = new_module;
+                self.composite_pipeline = pipeline;
+            }
+            _ => return Err(format!("未知着色器: {name}")),
+        }
+
+        Ok(())
     }
 
     /// 录制一帧的渲染命令到 `encoder` 中。
@@ -790,7 +1014,9 @@ impl GlassRenderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
         };
 
@@ -818,7 +1044,9 @@ impl GlassRenderer {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba16Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::STORAGE_BINDING,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::STORAGE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
             view_formats: &[],
         });
         let view = tex.create_view(&wgpu::TextureViewDescriptor::default());

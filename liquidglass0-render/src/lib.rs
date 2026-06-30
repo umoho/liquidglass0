@@ -9,5 +9,5 @@ mod shader;
 
 pub use config::RendererConfig;
 pub use input::RenderInput;
-pub use renderer::GlassRenderer;
+pub use renderer::{GlassRenderer, IntermediateTextures};
 pub use shader::{EmbeddedLoader, NagaOilLoader, ShaderLoader};
