@@ -28,6 +28,8 @@ pub struct HeadlessRenderer {
     output_view: wgpu::TextureView,
     /// 当前纹理尺寸（像素）。
     size: (u32, u32),
+    /// 输出纹理格式（与管线匹配）。
+    output_format: wgpu::TextureFormat,
 }
 
 impl HeadlessRenderer {
@@ -56,6 +58,7 @@ impl HeadlessRenderer {
             .expect("无法创建 wgpu device");
 
         let config = RendererConfig::default();
+        let out_format = config.texture_format;
         let glass = GlassRenderer::new(
             device.clone(),
             queue.clone(),
@@ -65,7 +68,7 @@ impl HeadlessRenderer {
         );
 
         let (bg_tex, bg_view) = Self::make_checkerboard(&device, &queue, width, height);
-        let (out_tex, out_view) = Self::make_output_texture(&device, width, height);
+        let (out_tex, out_view) = Self::make_output_texture(&device, width, height, out_format);
 
         Self {
             device,
@@ -76,6 +79,7 @@ impl HeadlessRenderer {
             output_tex: out_tex,
             output_view: out_view,
             size: (width, height),
+            output_format: out_format,
         }
     }
 
@@ -85,7 +89,8 @@ impl HeadlessRenderer {
     pub fn resize(&mut self, width: u32, height: u32) {
         self.size = (width, height);
         let (bg_tex, bg_view) = Self::make_checkerboard(&self.device, &self.queue, width, height);
-        let (out_tex, out_view) = Self::make_output_texture(&self.device, width, height);
+        let (out_tex, out_view) =
+            Self::make_output_texture(&self.device, width, height, self.output_format);
         self.background_tex = bg_tex;
         self.background_view = bg_view;
         self.output_tex = out_tex;
@@ -249,6 +254,7 @@ impl HeadlessRenderer {
         device: &wgpu::Device,
         width: u32,
         height: u32,
+        format: wgpu::TextureFormat,
     ) -> (wgpu::Texture, wgpu::TextureView) {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("output"),
@@ -260,11 +266,11 @@ impl HeadlessRenderer {
             mip_level_count: 1,
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba8Unorm,
+            format,
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT
                 | wgpu::TextureUsages::TEXTURE_BINDING
                 | wgpu::TextureUsages::COPY_SRC,
-            view_formats: &[wgpu::TextureFormat::Rgba8Unorm],
+            view_formats: &[format],
         });
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
         (texture, view)

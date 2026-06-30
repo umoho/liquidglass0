@@ -500,9 +500,6 @@ fn config_to_render(
 pub async fn serve(headless: HeadlessRenderer) {
     let app = McpSrv::new(headless);
     let transport = rmcp::transport::io::stdio();
-    let running = app
-        .serve(transport)
-        .await
-        .expect("MCP server 启动失败");
+    let running = app.serve(transport).await.expect("MCP server 启动失败");
     running.waiting().await.ok();
 }
