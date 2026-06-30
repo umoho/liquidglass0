@@ -313,4 +313,123 @@ impl Config {
     pub fn deformation_damping_b(&self) -> f32 {
         self.interaction.damping_b
     }
+
+    /// 将当前配置写入 TOML 文件。
+    ///
+    /// 使用 `toml_edit` 实现原地字段更新，
+    /// 保留文件中已有的注释和顺序。
+    pub fn save(&self, path: &str) {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let mut doc = content
+            .parse::<toml_edit::DocumentMut>()
+            .unwrap_or_else(|_| toml_edit::DocumentMut::new());
+
+        Self::set_float2(&mut doc, "panel", "half_size", &self.panel.half_size);
+        Self::set_float(&mut doc, "panel", "corner_radius", self.panel.corner_radius);
+        Self::set_float(&mut doc, "panel", "bevel_width", self.panel.bevel_width);
+        Self::set_float(&mut doc, "panel", "bevel_depth", self.panel.bevel_depth);
+        Self::set_float(
+            &mut doc,
+            "panel",
+            "reference_size",
+            self.panel.reference_size,
+        );
+
+        Self::set_float(
+            &mut doc,
+            "optical",
+            "refractive_index",
+            self.optical.refractive_index,
+        );
+        Self::set_float(
+            &mut doc,
+            "optical",
+            "chromatic_strength",
+            self.optical.chromatic_strength,
+        );
+        Self::set_float(
+            &mut doc,
+            "optical",
+            "fresnel_intensity",
+            self.optical.fresnel_intensity,
+        );
+        Self::set_float3(
+            &mut doc,
+            "optical",
+            "fresnel_color",
+            &self.optical.fresnel_color,
+        );
+        Self::set_float(
+            &mut doc,
+            "optical",
+            "specular_intensity",
+            self.optical.specular_intensity,
+        );
+        Self::set_float(
+            &mut doc,
+            "optical",
+            "specular_shininess",
+            self.optical.specular_shininess,
+        );
+        Self::set_float(&mut doc, "optical", "blur_radius", self.optical.blur_radius);
+
+        Self::set_float(
+            &mut doc,
+            "material",
+            "tint_opacity",
+            self.material.tint_opacity,
+        );
+        Self::set_float3(
+            &mut doc,
+            "material",
+            "tint_color",
+            &self.material.tint_color,
+        );
+        Self::set_float(
+            &mut doc,
+            "material",
+            "background_opacity",
+            self.material.background_opacity,
+        );
+        Self::set_float(&mut doc, "material", "saturation", self.material.saturation);
+        Self::set_float(&mut doc, "material", "contrast", self.material.contrast);
+        Self::set_float(&mut doc, "material", "brightness", self.material.brightness);
+
+        Self::set_float(&mut doc, "shadow", "opacity", self.shadow.opacity);
+        Self::set_float(&mut doc, "shadow", "blur", self.shadow.blur);
+        Self::set_float(&mut doc, "shadow", "offset_y", self.shadow.offset_y);
+
+        Self::set_float(
+            &mut doc,
+            "interaction",
+            "spring_k",
+            self.interaction.spring_k,
+        );
+        Self::set_float(
+            &mut doc,
+            "interaction",
+            "damping_b",
+            self.interaction.damping_b,
+        );
+
+        std::fs::write(path, doc.to_string()).unwrap_or_else(|e| {
+            eprintln!("保存配置失败: {e}");
+        });
+    }
+
+    fn set_float(doc: &mut toml_edit::DocumentMut, table: &str, key: &str, value: f32) {
+        doc[table][key] = toml_edit::value(value as f64);
+    }
+
+    fn set_float2(doc: &mut toml_edit::DocumentMut, table: &str, key: &str, value: &[f32; 2]) {
+        let arr =
+            toml_edit::Array::from_iter(value.iter().map(|v| toml_edit::Value::from(*v as f64)));
+        doc[table][key] = toml_edit::value(arr);
+    }
+
+    fn set_float3(doc: &mut toml_edit::DocumentMut, table: &str, key: &str, value: &[f32; 3]) {
+        let arr =
+            toml_edit::Array::from_iter(value.iter().map(|v| toml_edit::Value::from(*v as f64)));
+        doc[table][key] = toml_edit::value(arr);
+    }
 }
