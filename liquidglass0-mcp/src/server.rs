@@ -12,6 +12,7 @@ use rmcp::model::ErrorData as McpError;
 use rmcp::model::{CallToolResult, ContentBlock, Implementation, ServerCapabilities, ServerInfo};
 use rmcp::{ServerHandler, ServiceExt, tool, tool_handler, tool_router};
 use schemars::JsonSchema;
+use schemars::Schema;
 use serde::{Deserialize, Serialize};
 
 use crate::headless::HeadlessRenderer;
@@ -33,15 +34,33 @@ fn err_invalid(msg: impl Into<Cow<'static, str>>) -> McpError {
 
 // ── 参数类型 ──
 
+/// 包装 `serde_json::Value`，覆写 JsonSchema 为空对象 schema（而非布尔 `true`），
+/// 避免 TypeScript MCP SDK Zod 校验报 "Invalid input"。
+///
+/// JSON Schema 中 `{}` 和 `true` 语义等价（接受任意值），
+/// 但 Zod v4 只接受对象形式 schema。
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct JsonValue(pub serde_json::Value);
+
+impl schemars::JsonSchema for JsonValue {
+    fn schema_name() -> Cow<'static, str> {
+        "JsonValue".into()
+    }
+    fn json_schema(_gen: &mut schemars::SchemaGenerator) -> Schema {
+        Schema::from(serde_json::Map::new())
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct SetParamRequest {
     pub key: String,
-    pub value: serde_json::Value,
+    pub value: JsonValue,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct SetParamsRequest {
-    pub params: serde_json::Value,
+    pub params: JsonValue,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -140,12 +159,14 @@ impl McpSrv {
                 .ok_or_else(|| err_invalid(format!("{field_key} 不是数组")))?;
             let val = input
                 .value
+                .0
                 .as_f64()
                 .ok_or_else(|| err_invalid("value 需为数字"))?;
             arr.replace(i, toml_edit::Value::from(val));
         } else {
             let val = input
                 .value
+                .0
                 .as_f64()
                 .ok_or_else(|| err_invalid("value 需为数字"))?;
             table[field_key] = toml_edit::value(val);
@@ -164,6 +185,7 @@ impl McpSrv {
         let mut doc = read_config().map_err(err_internal)?;
         let params = input
             .params
+            .0
             .as_object()
             .ok_or_else(|| err_invalid("params 需为对象"))?;
 
