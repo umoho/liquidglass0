@@ -3,7 +3,7 @@ members = [
     "liquidglass0-core",
     "liquidglass0-render",
     "liquidglass0-demo",
-    "liquidglass0-mcp",
+    "liquidglass0-cli",
 ]
 resolver = "2"
 

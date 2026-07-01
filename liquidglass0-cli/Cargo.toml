@@ -1,8 +1,12 @@
 [package]
-name = "liquidglass0-mcp"
+name = "liquidglass0-cli"
 version = { workspace = true }
 edition = { workspace = true }
 license = { workspace = true }
+
+[[bin]]
+name = "lg0"
+path = "src/main.rs"
 
 [dependencies]
 liquidglass0-core = { path = "../liquidglass0-core" }
@@ -10,9 +14,8 @@ liquidglass0-render = { path = "../liquidglass0-render" }
 wgpu = { workspace = true }
 glam = { workspace = true }
 
-rmcp = { version = "2.0.0", features = ["transport-io"] }
-tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"] }
-schemars = "1.2"
+clap = { version = "4.6.1", features = ["derive"] }
+pollster = "0.4.0"
 
 image = "0.25.10"
 half = "2.7.1"
