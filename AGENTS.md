@@ -182,10 +182,78 @@ devlog/YYYY-MM-DD_slug-kebab-case.md
 *下一份日志应引用本文件：`2026-06-29_slug.md`*
 ```
 
-## MCP 调试工具
+## CLI 调试工具
 
-调试渲染效果时优先使用 `liquidglass0` MCP 工具：
+构建：`cargo build -p liquidglass0-cli --release`
 
-- `capture` — 渲染并捕获纹理
-- `get_config` / `set_param` / `set_params` / `reset_params` — 读写 config.toml
-- `read_shader` / `update_shader` — 读写着色器
+所有命令输出 stdout JSON，错误输出 stderr JSON 并退出码 1。
+
+### config — 读写参数
+
+| 命令 | 说明 |
+|------|------|
+| `lg0 config get` | 读取全部参数，输出 JSON |
+| `lg0 config set <K> <V>` | 修改单个参数 |
+| `lg0 config set --batch` | stdin JSON 批量修改 |
+| `lg0 config reset` | 恢复默认值 |
+
+参数 key 约定：
+- 标量：`optical.refractive_index`
+- 数组元素：`optical.fresnel_color[0]`
+- 批量 JSON：`{"optical.refractive_index": 1.33, "material.saturation": 1.5}`
+
+### shader — 读写着色器
+
+| 命令 | 说明 |
+|------|------|
+| `lg0 shader list` | 列出所有着色器名称 |
+| `lg0 shader read <NAME>` | 读取源码 |
+| `lg0 shader write <NAME>` | stdin 写入源码（不触发编译） |
+| `lg0 shader flush <NAME>` | 从磁盘重新编译管线 |
+
+### capture — 渲染捕获
+
+| 命令 | 说明 |
+|------|------|
+| `lg0 capture <W> <H> <KIND> [--output <PATH>]` | 渲染并捕获 PNG。无 --output 写入临时目录 |
+
+kind 取值：
+
+| kind | 纹理 |
+|------|------|
+| composite | 最终合成帧 |
+| displacement | 折射位移 |
+| h_blur | 水平模糊 |
+| v_blur | 垂直模糊 |
+
+### 调试工作流
+
+调参循环：
+
+```bash
+lg0 capture 512 512 composite --output /tmp/base.png  # 基线
+lg0 config set optical.refractive_index 1.33
+lg0 config set optical.fresnel_color[0] 0.95
+lg0 config set --batch << 'JSON'
+{"material.saturation": 1.5, "shadow.opacity": 0.25}
+JSON
+lg0 capture 512 512 composite --output /tmp/v1.png   # 对比
+```
+
+着色器调试：
+
+```bash
+lg0 shader read refract                              # 阅读当前源码
+lg0 shader write refract << 'WGSL'
+...修改后的 WGSL...
+WGSL
+lg0 shader flush refract                              # 重编译管线
+lg0 capture 512 512 composite --output /tmp/v2.png    # 观察效果
+```
+
+中间纹理排查：
+
+```bash
+lg0 capture 512 512 displacement --output /tmp/disp.png
+lg0 capture 512 512 h_blur --output /tmp/blur.png
+```
